@@ -1,14 +1,19 @@
 import json
 import logging
-from typing import Optional, AsyncGenerator, Dict, Any
+import os
+from typing import Optional, AsyncGenerator
 from openai import AsyncOpenAI
 from schemas import LaborCase, PPHCase
-from config import settings
 
 logger = logging.getLogger(__name__)
 
-# Reusing single client instance for performance
-client = AsyncOpenAI(api_key=settings.api_key, base_url=settings.api_base, timeout=60.0)
+# 从环境变量加载配置
+api_key = os.getenv("API_KEY", "YOUR_API_KEY")
+api_base = os.getenv("API_BASE", "https://dashscope.aliyuncs.com/compatible-mode/v1")
+model_name = os.getenv("MODEL_NAME", "deepseek-chat")
+
+# 创建单例客户端实例
+client = AsyncOpenAI(api_key=api_key, base_url=api_base, timeout=60.0)
 
 def build_labor_system_prompt() -> str:
     """构建产程评估系统提示"""
@@ -197,7 +202,7 @@ async def call_ai_analysis(system_prompt: str, user_prompt: str) -> Optional[str
     """调用AI进行分析，失败时记录日志并返回None"""
     try:
         response = await client.chat.completions.create(
-            model=settings.model_name,
+            model=model_name,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
@@ -214,7 +219,7 @@ async def generate_stream(system_prompt: str, user_prompt: str) -> AsyncGenerato
     """通用流式生成器"""
     try:
         stream = await client.chat.completions.create(
-            model=settings.model_name,
+            model=model_name,
             messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
             temperature=0.3, max_tokens=2000, stream=True
         )

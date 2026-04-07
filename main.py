@@ -94,10 +94,15 @@ async def handle_labor_analysis(case: LaborCase) -> dict:
 async def handle_pph_analysis(case: LaborCase) -> dict:
     """处理PPH复苏分析 - 基于规则计算优先，AI增强可选"""
     abl = max(case.blood_loss, 0)
-    # Default values for mock request
-    hr = 80
-    sbp = 90
-    dbp = 60
+    hr = case.fetal_heart_rate if case.fetal_heart_rate else 80
+    
+    # 从血压字符串中解析收缩压和舒张压
+    try:
+        sbp_str, dbp_str = case.blood_pressure.split('/')
+        sbp = int(sbp_str.strip())
+        dbp = int(dbp_str.strip())
+    except:
+        sbp, dbp = 120, 80  # 默认正常血压
 
     si = calculate_shock_index(sbp, hr)
     shock_level, shock_color, shock_advice = get_shock_level(si)

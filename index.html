@@ -42,14 +42,45 @@
             width: 100%;
             height: 100%;
             height: 100dvh;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
+            overflow: hidden;
         }
         
         main {
             flex: 1;
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
+        }
+        
+        /* 桌面端宽度限制 */
+        @media(min-width:768px) {
+            main {
+                max-width: 56rem;
+                margin-left: auto;
+                margin-right: auto;
+            }
+            
+            header {
+                max-width: none;
+            }
+            
+            header > div {
+                max-width: 56rem;
+                margin-left: auto;
+                margin-right: auto;
+            }
+            
+            /* 底部按钮容器宽度限制 */
+            main + div {
+                max-width: 56rem !important;
+                margin-left: auto !important;
+                margin-right: auto !important;
+            }
+            
+            .fixed.bottom-0 > div {
+                max-width: 56rem;
+                margin-left: auto;
+                margin-right: auto;
+            }
         }
         
         .slide-enter-active,.slide-leave-active{transition:all .4s cubic-bezier(.32,.72,0,1)}
@@ -209,20 +240,26 @@
         }
 
         @media(max-width:640px){
-            .rc-hd{padding:12px 14px;min-height:52px}
-            .rc-icon{width:36px;height:36px;border-radius:10px}
-            .rc-bd{padding:0 12px 12px}
-            .rc-it{padding:8px 0;gap:8px}
-            .rc-it-txt{font-size:13px;line-height:1.68}
-            .rc-sum{padding:0 12px 10px;font-size:12px}
-            .rc{border-radius:14px}
-            .glk{padding:9px 10px;gap:8px}
-            .glk-icon{width:30px;height:30px;border-radius:8px}
-            .pph-metric-card p.text-3xl{font-size:1.5rem!important}
+            .rc-hd{padding:10px 12px;min-height:48px}
+            .rc-icon{width:32px;height:32px;border-radius:8px}
+            .rc-bd{padding:0 10px 10px}
+            .rc-it{padding:6px 0;gap:6px}
+            .rc-it-txt{font-size:12px;line-height:1.6}
+            .rc-sum{padding:0 10px 8px;font-size:11px;gap:4px}
+            .rc-sum-dot{width:3px;height:3px}
+            .rc{border-radius:12px}
+            .glk{padding:8px 10px;gap:6px;border-radius:10px}
+            .glk-icon{width:28px;height:28px;border-radius:6px;font-size:12px}
+            .pph-metric-card p.text-3xl{font-size:1.25rem!important}
+            .pph-metric-card {padding: 0.75rem !important}
+            
+            main{
+                padding: 0.75rem 0.75rem 1rem !important
+            }
             
             /* 移动端安全区域修复 */
             .fixed.bottom-0 {
-                padding-bottom: max(1rem, env(safe-area-inset-bottom));
+                padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
                 bottom: 0;
             }
             
@@ -235,7 +272,6 @@
             
             /* 小屏幕适配 */
             header { padding-top: env(safe-area-inset-top, 0) }
-            header .max-w-4xl { padding-top: 0.5rem }
         }
         
         /* Extra small screens (320px+) */
@@ -249,11 +285,11 @@
     </style>
 </head>
 <body class="bg-[#F5F5F7] m-0 p-0 w-full" @keydown.escape="showLaborCritical && closeAlertModal()">
-<div id="app" class="pb-32" @click="activeInfo = null">
+<div id="app" class="pb-0" @click="activeInfo = null">
 
 <!-- Header -->
 <header class="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-gray-200">
-    <div class="max-w-4xl mx-auto px-4 py-3">
+    <div class="w-full px-3 md:px-4 py-3 md:py-3">
         <div class="flex items-center justify-between mb-3">
             <div><h1 class="text-lg font-bold text-gray-900">产房决策辅助</h1><p class="text-xs text-gray-500">智能风险评估系统</p></div>
             <button @click="showSettings=true" class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-blue-500"><i class="fas fa-cog text-lg"></i></button>
@@ -266,7 +302,7 @@
     </div>
 </header>
 
-<main class="max-w-4xl mx-auto px-4 py-6">
+<main class="w-full px-3 md:px-4 py-4 md:py-6">
 <transition name="slide" mode="out-in">
 
 <!-- ==================== 产程评估页面 ==================== -->
@@ -274,23 +310,23 @@
 
     <!-- 基础背景 -->
     <div class="bg-white rounded-2xl p-5 shadow-sm">
-        <div class="flex items-center mb-4">
-            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center mr-3"><i class="fas fa-user text-white"></i></div>
-            <div><h2 class="text-lg font-semibold text-gray-900">基础背景</h2><p class="text-xs text-gray-500">Basic Information</p></div>
+        <div class="flex items-center mb-3">
+            <div class="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center mr-2 md:mr-3 text-sm md:text-base"><i class="fas fa-user text-white"></i></div>
+            <div><h2 class="text-base md:text-lg font-semibold text-gray-900">基础背景</h2><p class="text-xs text-gray-500">Basic</p></div>
         </div>
-        <div class="space-y-4">
-            <div class="flex items-center justify-between py-2.5 border-b border-gray-100">
+        <div class="space-y-3 md:space-y-4">
+            <div class="flex items-center justify-between py-2 md:py-2.5 border-b border-gray-100">
                 <span class="text-gray-700 text-sm">孕周</span>
-                <div class="flex items-center"><input type="number" v-model.number="laborForm.gestational_age" step="0.1" min="20" max="42" class="w-20 text-right text-blue-500 font-semibold bg-transparent text-sm"><span class="text-gray-500 text-sm ml-1">周</span></div>
+                <div class="flex items-center"><input type="number" v-model.number="laborForm.gestational_age" step="0.1" min="20" max="42" class="w-16 md:w-20 text-right text-blue-500 font-semibold bg-transparent text-xs md:text-sm"><span class="text-gray-500 text-xs md:text-sm ml-1">周</span></div>
             </div>
-            <div class="flex items-center justify-between py-2.5 border-b border-gray-100">
+            <div class="flex items-center justify-between py-2 md:py-2.5 border-b border-gray-100">
                 <span class="text-gray-700 text-sm">产次</span>
-                <input type="number" v-model.number="laborForm.parity" min="0" class="w-20 text-right text-blue-500 font-semibold bg-transparent text-sm">
+                <input type="number" v-model.number="laborForm.parity" min="0" class="w-16 md:w-20 text-right text-blue-500 font-semibold bg-transparent text-xs md:text-sm">
             </div>
             <!-- 高危因素 -->
-            <div class="py-2">
-                <div class="flex items-center mb-3"><i class="fas fa-exclamation-triangle text-orange-500 text-xs mr-2"></i><span class="text-gray-700 text-sm font-medium">高危因素（点击展开）</span></div>
-                <div class="space-y-2">
+            <div class="py-1.5 md:py-2">
+                <div class="flex items-center mb-2 md:mb-3"><i class="fas fa-exclamation-triangle text-orange-500 text-xs mr-2"></i><span class="text-gray-700 text-sm font-medium">高危因素</span></div>
+                <div class="space-y-1.5 md:space-y-2">
                     <div v-for="item in comorbidityOptions" :key="item.value" class="rounded-xl overflow-hidden border-2 transition-all" :class="selectedComorbidities.includes(item.value)?'border-orange-400 bg-orange-50':'border-gray-200 bg-white'">
                         <div @click="toggleComorbidity(item)" class="flex items-center justify-between px-4 py-3.5 cursor-pointer active:bg-gray-100">
                             <div class="flex items-center">
@@ -334,18 +370,18 @@
 
     <!-- 实时体征 -->
     <div class="bg-white rounded-2xl p-5 shadow-sm">
-        <div class="flex items-center mb-4">
-            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center mr-3"><i class="fas fa-heartbeat text-white"></i></div>
-            <div><h2 class="text-lg font-semibold text-gray-900">实时体征</h2><p class="text-xs text-gray-500">Vital Signs</p></div>
+        <div class="flex items-center mb-3">
+            <div class="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center mr-2 md:mr-3 text-sm md:text-base"><i class="fas fa-heartbeat text-white"></i></div>
+            <div><h2 class="text-base md:text-lg font-semibold text-gray-900">实时体征</h2><p class="text-xs text-gray-500">Vitals</p></div>
         </div>
-        <div class="space-y-4">
-            <div class="flex items-center justify-between py-2.5 border-b border-gray-100">
+        <div class="space-y-3 md:space-y-4">
+            <div class="flex items-center justify-between py-2 md:py-2.5 border-b border-gray-100">
                 <span class="text-gray-700 text-sm">胎心率</span>
-                <div class="flex items-center"><input type="number" v-model.number="laborForm.fetal_heart_rate" min="80" max="200" class="w-20 text-right text-blue-500 font-semibold bg-transparent text-sm"><span class="text-gray-500 text-sm ml-1">bpm</span></div>
+                <div class="flex items-center"><input type="number" v-model.number="laborForm.fetal_heart_rate" min="80" max="200" class="w-16 md:w-20 text-right text-blue-500 font-semibold bg-transparent text-xs md:text-sm"><span class="text-gray-500 text-xs md:text-sm ml-1">bpm</span></div>
             </div>
-            <div class="flex items-center justify-between py-2.5 border-b border-gray-100">
+            <div class="flex items-center justify-between py-2 md:py-2.5 border-b border-gray-100">
                 <span class="text-gray-700 text-sm">血压</span>
-                <input type="text" v-model="laborForm.blood_pressure" placeholder="120/80" class="w-28 text-right text-blue-500 font-semibold bg-transparent text-sm">
+                <input type="text" v-model="laborForm.blood_pressure" placeholder="120/80" class="w-24 md:w-28 text-right text-blue-500 font-semibold bg-transparent text-xs md:text-sm">
             </div>
             <div class="flex items-center justify-between py-2.5 border-b border-gray-100">
                 <span class="text-gray-700 text-sm">出血量</span>
@@ -471,12 +507,12 @@
 </div>
 
 <!-- ==================== PPH复苏页面 ==================== -->
-<div v-else key="pph" class="space-y-4">
+<div v-else key="pph" class="space-y-3 md:space-y-4">
     <!-- 核心指标 -->
-    <div class="grid grid-cols-3 gap-3">
-        <div class="pph-metric-card rounded-2xl p-4 text-center" :class="{ 'pph-severe': pphData.accumulated_blood_loss>=1500 }">
-            <p class="text-xs text-gray-500 mb-1">累积失血量 (ABL)</p>
-            <p class="text-3xl font-bold" :class="{ 'text-red-600': pphData.accumulated_blood_loss>=1500 }">{{ pphData.accumulated_blood_loss }}</p>
+    <div class="grid grid-cols-3 gap-2 md:gap-3">
+        <div class="pph-metric-card rounded-2xl p-3 md:p-4 text-center text-xs md:text-base" :class="{ 'pph-severe': pphData.accumulated_blood_loss>=1500 }">
+            <p class="text-xs md:text-sm text-gray-500 mb-1 md:mb-2">失血量</p>
+            <p class="text-2xl md:text-3xl font-bold" :class="{ 'text-red-600': pphData.accumulated_blood_loss>=1500 }">{{ pphData.accumulated_blood_loss }}</p>
             <p class="text-xs text-gray-500">ml</p>
         </div>
         <div class="pph-metric-card rounded-2xl p-4 text-center" :class="{ 'pph-severe': si>=1.5,'pph-warning': si>=1&&si<1.5 }">
@@ -492,21 +528,21 @@
     </div>
 
     <!-- MTP 预警 -->
-    <div v-if="pphNeedMtp" class="bg-red-500 rounded-2xl p-4 pulse-critical">
-        <div class="flex items-center justify-between">
-            <div class="flex items-center"><i class="fas fa-bell text-2xl text-white mr-4"></i><div><p class="text-white font-bold text-lg">【紧急启动MTP预案】</p><p class="text-white/90 text-sm">请立即通知：麻醉医生、血库、产科主任</p></div></div>
-            <button @click="pphNeedMtp=false" class="px-4 py-2 bg-white rounded-xl text-red-500 font-bold text-sm">已通知</button>
+    <div v-if="pphNeedMtp" class="bg-red-500 rounded-2xl p-3 md:p-4 pulse-critical">
+        <div class="flex items-start md:items-center justify-between gap-2 md:gap-4">
+            <div class="flex items-start md:items-center gap-2 md:gap-4 flex-1 min-w-0"><i class="fas fa-bell text-lg md:text-2xl text-white flex-shrink-0 mt-0.5"></i><div class="min-w-0"><p class="text-white font-bold text-sm md:text-lg break-words">【紧急启动MTP预案】</p><p class="text-white/90 text-xs md:text-sm">立即通知：麻醉医生、血库、产科主任</p></div></div>
+            <button @click="pphNeedMtp=false" class="px-3 md:px-4 py-1.5 md:py-2 bg-white rounded-lg md:rounded-xl text-red-500 font-bold text-xs md:text-sm flex-shrink-0 whitespace-nowrap">已通知</button>
         </div>
     </div>
 
     <!-- 出血量输入 -->
-    <div class="bg-white rounded-2xl p-5 shadow-sm">
-        <div class="flex items-center justify-between mb-4">
-            <label class="text-gray-900 font-semibold">累积出血量</label>
-            <div class="flex items-center"><input type="number" v-model.number="pphData.accumulated_blood_loss" class="w-32 bg-gray-100 rounded-xl px-4 py-2 text-2xl font-bold text-center text-gray-900" min="0"><span class="text-gray-500 ml-2">ml</span></div>
+    <div class="bg-white rounded-2xl p-4 md:p-5 shadow-sm">
+        <div class="flex items-center justify-between mb-3 md:mb-4">
+            <label class="text-gray-900 font-semibold text-sm md:text-base">累积出血量</label>
+            <div class="flex items-center gap-1 md:gap-2"><input type="number" v-model.number="pphData.accumulated_blood_loss" class="w-20 md:w-32 bg-gray-100 rounded-lg md:rounded-xl px-2 md:px-4 py-1.5 md:py-2 text-lg md:text-2xl font-bold text-center text-gray-900 text-xs md:text-base" min="0"><span class="text-gray-500 text-xs md:text-sm">ml</span></div>
         </div>
-        <input type="range" v-model.number="pphData.accumulated_blood_loss" min="0" max="3000" step="50" class="w-full h-3 rounded-full appearance-none cursor-pointer" style="background:linear-gradient(to right,#34C759 0%,#FF9500 50%,#FF3B30 100%)">
-        <div class="flex justify-between text-xs text-gray-400 mt-2"><span>0</span><span>500</span><span>1000</span><span>1500</span><span>2000</span><span>3000ml</span></div>
+        <input type="range" v-model.number="pphData.accumulated_blood_loss" min="0" max="3000" step="50" class="w-full h-2 md:h-3 rounded-full appearance-none cursor-pointer" style="background:linear-gradient(to right,#34C759 0%,#FF9500 50%,#FF3B30 100%)">
+        <div class="flex justify-between text-xs text-gray-400 mt-1.5 md:mt-2"><span>0</span><span>500</span><span>1000</span><span>1500</span><span>2000</span><span>3000ml</span></div>
     </div>
 
     <!-- 生命体征 -->
@@ -635,11 +671,11 @@
 </main>
 
 <!-- 底部按钮 -->
-<div class="fixed bottom-0 left-0 right-0 p-4 bg-white/95 backdrop-blur-xl border-t border-gray-200">
-    <div class="max-w-4xl mx-auto">
-        <button @click="submitAnalysis" :disabled="isLoading" class="w-full py-4 rounded-2xl text-white font-bold text-lg shadow-lg transition-all flex items-center justify-center" :class="isLoading?'bg-gray-400':'bg-blue-500 active:bg-blue-600'">
-            <span v-if="isLoading"><i class="fas fa-circle-notch fa-spin mr-3"></i>分析中...</span>
-            <span v-else><i class="fas fa-play mr-3"></i>{{ activeTab==='labor'?'开始专家评估':'开始复苏分析' }}</span>
+<div class="w-full md:max-w-4xl md:mx-auto p-2.5 md:p-4 bg-white/95 backdrop-blur-xl border-t border-gray-200">
+    <div class="w-full px-1 md:px-0">
+        <button @click="submitAnalysis" :disabled="isLoading" class="w-full py-3 md:py-4 rounded-lg md:rounded-2xl text-white font-bold text-sm md:text-lg shadow-lg transition-all flex items-center justify-center" :class="isLoading?'bg-gray-400':'bg-blue-500 active:bg-blue-600'">
+            <span v-if="isLoading"><i class="fas fa-circle-notch fa-spin mr-2 md:mr-3"></i>分析中...</span>
+            <span v-else><i class="fas fa-play mr-2 md:mr-3"></i>{{ activeTab==='labor'?'开始评估':'开始分析' }}</span>
         </button>
     </div>
 </div>
@@ -765,20 +801,15 @@ setup() {
     const bmiCategory = (c) => { const b = calculatedBMI(c); if (!b) return ''; if (b < 18.5) return '体重过低'; if (b < 24) return '正常'; if (b < 28) return '超重'; return '肥胖' }
 
     const saveApiConfig = () => { 
-        try {
-            localStorage.setItem('apiConfig', JSON.stringify(apiConfig))
-        } catch(e) {
-            console.warn('localStorage不可用，配置仅保存在内存中:', e)
-        }
+        try { localStorage.setItem('apiConfig', JSON.stringify(apiConfig)) }
+        catch(e) { }
         showSettings.value = false 
     }
     const loadApiConfig = () => { 
         try {
             const s = localStorage.getItem('apiConfig')
             if (s) Object.assign(apiConfig, JSON.parse(s))
-        } catch(e) {
-            console.warn('localStorage不可用:', e)
-        }
+        } catch(e) { }
     }
 
     // ========== 解析AI结果为结构化卡片 (默认折叠) ==========
@@ -923,12 +954,8 @@ setup() {
         showSettings.value = false
         criticalAlerts.value = []
         criticalContacts.value = []
-        // 立即DOM操作，不用nextTick以提高兼容性
         const el = document.getElementById('critical-modal')
-        if (el) { 
-            el.style.display = 'none !important'
-            el.classList.add('force-hidden')
-        }
+        if (el) { el.style.display = 'none !important' }
     }
 
     const submitAnalysis = async () => {
@@ -936,7 +963,7 @@ setup() {
         pphError.value = null
 
         if (activeTab.value === 'labor') {
-            if (!apiConfig.apiKey) { alert('请先在设置中配置 API Key'); showSettings.value = true; isLoading.value = false; return }
+            if (!apiConfig.apiKey) { showSettings.value = true; isLoading.value = false; return }
             laborResult.value = { ai_analysis: null }
             rawText.value = ''
             assessmentCards.value = []
@@ -952,10 +979,8 @@ setup() {
                     isStreaming.value = false
                     isLoading.value = false
                     
-                    // 移动端友好：显示弹窗后3秒自动关闭（防止无法关闭）
                     setTimeout(() => {
                         if (showLaborCritical.value === true) {
-                            console.warn('⚠️ 紧急弹窗超时自动关闭')
                             closeAlertModal()
                         }
                     }, 3000)
@@ -1036,7 +1061,6 @@ setup() {
 
             } catch(err) {
                 isStreaming.value = false
-                console.error('流式失败:', err)
                 try {
                     let apiUrl = apiConfig.baseUrl.replace(/\/+$/, '')
                     if (!apiUrl.endsWith('/chat/completions')) apiUrl += '/chat/completions'
@@ -1063,7 +1087,7 @@ setup() {
                     const d = await res.json()
                     laborResult.value = { ai_analysis: d.choices?.[0]?.message?.content }
                     parseResult(d.choices?.[0]?.message?.content)
-                } catch(e2) { alert(`分析失败: ${e2.message || '网络超时或API错误'}`) }
+                } catch(e2) { }
             }
         } else {
             pphResult.value = null
@@ -1171,16 +1195,11 @@ setup() {
             modal.classList.add('force-hidden')
         }
         
-        // 安全保障：3秒后检查弹窗是否意外显示
         setTimeout(() => {
             if (showLaborCritical.value === true) {
-                console.warn('⚠️ 检测到弹窗异常显示，自动关闭')
                 showLaborCritical.value = false
                 const el = document.getElementById('critical-modal')
-                if (el) {
-                    el.style.display = 'none !important'
-                    el.classList.add('force-hidden')
-                }
+                if (el) el.style.display = 'none !important'
             }
         }, 3000)
     })
@@ -1189,10 +1208,7 @@ setup() {
         // 切换Tab时总是关闭弹窗
         showLaborCritical.value = false
         const modal = document.getElementById('critical-modal')
-        if (modal) {
-            modal.style.display = 'none !important'
-            modal.classList.remove('show')
-        }
+        if (modal) modal.style.display = 'none !important'
         
         if (t === 'labor') { pphResult.value = null; pphNeedMtp.value = false; pphError.value = null }
         else { laborResult.value = null; rawText.value = ''; assessmentCards.value = []; isStreaming.value = false; streamingText.value = '' }
