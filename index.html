@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="https://cdn.staticfile.net/font-awesome/6.4.0/css/all.min.css">
     <style>
         * { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", STHeiti, "Microsoft Yahei", Tahoma, Simsun, sans-serif; -webkit-tap-highlight-color: transparent; }
+        [v-cloak] { display: none !important; }
         
         .slide-enter-active,.slide-leave-active{transition:all .4s cubic-bezier(.32,.72,0,1)}
         .slide-enter-from{transform:translateX(100%);opacity:0}
@@ -169,7 +170,7 @@
     </style>
 </head>
 <body class="bg-[#F5F5F7] min-h-screen">
-<div id="app" class="min-h-screen pb-28" @click="activeInfo = null">
+<div id="app" v-cloak class="min-h-screen pb-28" @click="activeInfo = null">
 
 <!-- Header -->
 <header class="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-gray-200">
@@ -581,7 +582,7 @@
 </transition>
 
 <!-- 紧急警报 -->
-<div v-if="showLaborCritical" class="fixed inset-0 z-[9999] bg-black/70 flex items-center justify-center p-6">
+<div v-if="showLaborCritical" class="fixed inset-0 z-[9999] bg-black/70 flex items-center justify-center p-6" @click.self="showLaborCritical=false">
     <div class="bg-white w-full max-w-sm rounded-3xl overflow-hidden text-center shadow-2xl">
         <div class="bg-gradient-to-br from-red-500 to-orange-500 px-6 py-10">
             <div class="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-4 animate-pulse"><i class="fas fa-exclamation-triangle text-white text-4xl"></i></div>
@@ -590,13 +591,15 @@
         <div class="p-6">
             <div class="bg-red-50 rounded-2xl p-4 mb-4">
                 <p class="text-red-600 font-semibold text-sm mb-2"><i class="fas fa-exclamation-circle mr-2"></i>检测到危险指标：</p>
-                <ul class="text-red-600 text-sm space-y-1 text-left"><li v-for="(a,i) in criticalAlerts" :key="'a'+i">{{ a }}</li></ul>
+                <ul class="text-red-600 text-sm space-y-1 text-left" v-if="criticalAlerts && criticalAlerts.length"><li v-for="(alertItem,i) in criticalAlerts" :key="'a'+i">{{ alertItem }}</li></ul>
+                <p class="text-red-500 text-sm" v-else>暂无具体指标</p>
             </div>
             <div class="bg-gray-100 rounded-2xl p-4 mb-4">
                 <p class="text-gray-700 font-medium text-sm mb-2"><i class="fas fa-phone-alt text-blue-500 mr-2"></i>建议立即呼叫：</p>
-                <div class="flex flex-wrap gap-2 justify-center"><span v-for="(p,i) in criticalContacts" :key="'p'+i" class="px-3 py-1 bg-blue-500 text-white text-xs rounded-full font-medium">{{ p }}</span></div>
+                <div class="flex flex-wrap gap-2 justify-center" v-if="criticalContacts && criticalContacts.length"><span v-for="(personItem,i) in criticalContacts" :key="'p'+i" class="px-3 py-1 bg-blue-500 text-white text-xs rounded-full font-medium">{{ personItem }}</span></div>
+                <p class="text-gray-500 text-sm" v-else>暂无联系人</p>
             </div>
-            <button @click="showLaborCritical=false;showSettings=false" class="w-full py-4 rounded-2xl bg-red-500 text-white font-bold text-lg active:bg-red-600">我已知晓</button>
+            <button @click.prevent="closeAlertModal()" @touchend.prevent="closeAlertModal()" class="w-full py-4 rounded-2xl bg-red-500 text-white font-bold text-lg active:bg-red-600 select-none">我已知晓</button>
         </div>
     </div>
 </div>
@@ -812,6 +815,11 @@ setup() {
         criticalContacts.value = [...new Set(contacts)].slice(0, 4)
     }
 
+    const closeAlertModal = () => {
+        showLaborCritical.value = false
+        showSettings.value = false
+    }
+
     const submitAnalysis = async () => {
         isLoading.value = true
         pphError.value = null
@@ -928,7 +936,7 @@ setup() {
         laborResult, rawText, assessmentCards, pphData, pphResult, pphNeedMtp, pphError,
         isStreaming, streamingText, si, map, siColorClass, pphShockColor, activeInfo,
         toggleComorbidity, setComorbidityDetail, getDetailValue, calculatedBMI, bmiCategory,
-        saveApiConfig, submitAnalysis, toggleCard, toggleInfo
+        saveApiConfig, submitAnalysis, toggleCard, toggleInfo, closeAlertModal
     }
 }
 }).mount('#app')
