@@ -1,0 +1,19 @@
+services:
+  # 类型: web (Web Service)
+  - type: web
+    name: labor-risk-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    envVars:
+      - key: API_KEY
+        sync: false
+      - key: API_BASE
+        value: https://dashscope.aliyuncs.com/compatible-mode/v1
+        sync: false
+      - key: MODEL_NAME
+        value: deepseek-chat
+        sync: false
+    plan: free
+    numInstances: 1
+    healthCheckPath: /

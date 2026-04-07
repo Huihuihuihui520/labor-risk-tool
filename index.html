@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>产房风险决策辅助系统</title>
+    <!-- DNS 预解析加速加载 -->
+    <link rel="dns-prefetch" href="https://cdn.staticfile.net">
+    
+    <link rel="stylesheet" href="./static/css/tailwind.css">
+    <script src="https://cdn.staticfile.net/vue/3.3.4/vue.global.prod.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.staticfile.net/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", STHeiti, "Microsoft Yahei", Tahoma, Simsun, sans-serif; -webkit-tap-highlight-color: transparent; }
+        
+        .slide-enter-active,.slide-leave-active{transition:all .4s cubic-bezier(.32,.72,0,1)}
+        .slide-enter-from{transform:translateX(100%);opacity:0}
+        .slide-leave-to{transform:translateX(-100%);opacity:0}
+
+        .fade-enter-active,.fade-leave-active{transition:opacity .3s ease}
+        .fade-enter-from,.fade-leave-to{opacity:0}
+
+        /* 二级菜单动画 */
+        .ex-a{transition:all .25s cubic-bezier(.32,.72,0,1);overflow:hidden}
+        .ex-a-from,.ex-a-to{grid-template-rows:0fr;opacity:0}
+        .ex-enter-to,.ex-leave-from{grid-template-rows:1fr;opacity:1}
+        .ex-wrap{display:grid;grid-template-rows:1fr}
+
+        .card-in{animation:cardIn .35s cubic-bezier(.22,1,.36,1) forwards;opacity:0}
+        @keyframes cardIn{from{transform:translateY(12px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+        .pulse-critical{animation:pulseC 1.5s ease-in-out infinite}
+        @keyframes pulseC{0%,100%{box-shadow:0 0 0 0 rgba(255,59,48,.4)}50%{box-shadow:0 0 0 10px rgba(255,59,48,0)}}
+
+        .slider-ios{-webkit-appearance:none;height:6px;border-radius:3px;background:#e5e7eb}
+        .slider-ios::-webkit-slider-thumb{-webkit-appearance:none;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.15);cursor:pointer}
+        input:focus{outline:none}
+
+        /* PPH */
+        .pph-metric-card{background:rgba(255,255,255,.95);backdrop-filter:blur(20px);border:1px solid rgba(0,0,0,.06)}
+        .pph-severe{background:rgba(255,59,48,.1)!important;border-color:rgba(255,59,48,.3)!important}
+        .pph-warning{background:rgba(255,149,0,.1)!important;border-color:rgba(255,149,0,.3)!important}
+
+        /* ========== 结果卡片 (重构版) ========== */
+        .rc{background:white;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.06)}
+        .rc-hd{
+            display:flex;align-items:center;padding:14px 16px;gap:12px;
+            cursor:pointer;user-select:none;min-height:56px;
+            transition:background .15s
+        }
+        .rc-hd:active{background:rgba(0,0,0,.03)}
+        .rc-icon{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+        .rc-info{flex:1;min-width:0}
+        .rc-badge{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.3px;flex-shrink:0}
+        .rc-chev{color:#c7c7cc;transition:transform .25s cubic-bezier(.32,.72,0,1);font-size:14px;flex-shrink:0;margin-left:4px}
+        .rc-chev.on{transform:rotate(180deg)}
+
+        /* 摘要行 */
+        .rc-sum{display:flex;align-items:center;gap:8px;padding:0 16px 12px;font-size:13px;color:#8e8e93}
+        .rc-sum-dot{width:4px;height:4px;border-radius:50%;background:#c7c7cc;flex-shrink:0}
+        .rc-sum-txt{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .rc-sum-n{font-size:12px;color:#aeaeb2;background:#f5f5f7;padding:2px 8px;border-radius:10px;flex-shrink:0}
+
+        /* 展开内容 */
+        .rc-bd{padding:0 16px 14px;border-top:1px solid #f0f0f2}
+        .rc-it{display:flex;align-items:flex-start;padding:9px 0;gap:10px}
+        .rc-it-bullet{width:6px;height:6px;border-radius:50%;margin-top:7px;flex-shrink:0}
+        .rc-it-val{font-weight:600;color:#1d1d1f;font-size:13px;flex-shrink:0}
+        .rc-it-txt{color:#555;font-size:13px;line-height:1.65;word-break:break-word}
+
+        /* 紧急程度 */
+        .urg-crit{border-left:4px solid #FF3B30;background:linear-gradient(135deg,#FFF5F5 0%,#FFECEC 100%)}
+        .urg-high{border-left:4px solid #FF9500;background:linear-gradient(135deg,#FFF9F5 0%,#FFF3E8 100%)}
+        .urg-med{border-left:4px solid #FFCC00;background:linear-gradient(135deg,#FFFDF5 0%,#FFFBE8 100%)}
+        .urg-low{border-left:4px solid #007AFF;background:linear-gradient(135deg,#F5FAFF 0%,#EBF4FF 100%)}
+
+        /* 流式加载 */
+        .stream-box{min-height:120px;display:flex;align-items:center;justify-content:center}
+        .stream-dots{display:flex;gap:6px}
+        .stream-dot{width:8px;height:8px;border-radius:50%;background:#007AFF;animation:sBounce 1.4s ease-in-out infinite both}
+        .stream-dot:nth-child(1){animation-delay:-.32s}.stream-dot:nth-child(2){animation-delay:-.16s}
+        @keyframes sBounce{0%,80%,100%{transform:scale(0);opacity:.5}40%{transform:scale(1);opacity:1}}
+
+        /* 展开/收起动画 */
+        .col-a{transition:all .25s cubic-bezier(.32,.72,0,1);overflow:hidden}
+        .col-enter-from,.col-leave-to{max-height:0;opacity:0;padding-top:0;padding-bottom:0}
+        .col-enter-to,.col-leave-from{max-height:600px;opacity:1}
+
+        /* 指南链接 */
+        .glk{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:white;border:1px solid #f0f0f2;cursor:pointer;transition:all .15s}
+        .glk:active{background:#f5f5f7;transform:scale(.98)}
+        .glk-icon{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+
+        /* PPH结果卡片 */
+        .pph-rc{background:white;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.06)}
+        .pph-rc-hd{display:flex;align-items:center;gap:10px;padding:14px 16px;background:linear-gradient(135deg,#f5f5f7 0%,#e8e8ed 100%)}
+
+        /* PPH 提示浮窗样式 */
+        .info-btn {
+            position: absolute;
+            top: 14px;
+            right: 16px;
+            width: 24px;
+            height: 24px;
+            border-radius: 12px;
+            background: rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(0,0,0,0.4);
+            cursor: pointer;
+            transition: all 0.2s;
+            z-index: 10;
+        }
+        
+        .info-btn:hover {
+            background: rgba(0,0,0,0.1);
+            color: rgba(0,0,0,0.7);
+        }
+
+        .info-popover {
+            position: absolute;
+            top: 45px;
+            right: 16px;
+            width: 280px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 12px;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);
+            z-index: 20;
+            color: #374151;
+            font-size: 12px;
+            line-height: 1.5;
+            pointer-events: none;
+            opacity: 0;
+            transform: translateY(-5px);
+            transition: all 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+        }
+        
+        .info-popover.show {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        .info-popover-title {
+            color: #111827;
+            font-weight: 600;
+            margin-bottom: 6px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #f3f4f6;
+            display: flex;
+            align-items: center;
+        }
+
+        @media(max-width:640px){
+            .rc-hd{padding:12px 14px;min-height:52px}
+            .rc-icon{width:36px;height:36px;border-radius:10px}
+            .rc-bd{padding:0 12px 12px}
+            .rc-it{padding:8px 0;gap:8px}
+            .rc-it-txt{font-size:13px;line-height:1.68}
+            .rc-sum{padding:0 12px 10px;font-size:12px}
+            .rc{border-radius:14px}
+            .glk{padding:9px 10px;gap:8px}
+            .glk-icon{width:30px;height:30px;border-radius:8px}
+            .pph-metric-card p.text-3xl{font-size:1.5rem!important}
+        }
+    </style>
+</head>
+<body class="bg-[#F5F5F7] min-h-screen">
+<div id="app" class="min-h-screen pb-28" @click="activeInfo = null">
+
+<!-- Header -->
+<header class="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-gray-200">
+    <div class="max-w-4xl mx-auto px-4 py-3">
+        <div class="flex items-center justify-between mb-3">
+            <div><h1 class="text-lg font-bold text-gray-900">产房决策辅助</h1><p class="text-xs text-gray-500">智能风险评估系统</p></div>
+            <button @click="showSettings=true" class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-blue-500"><i class="fas fa-cog text-lg"></i></button>
+        </div>
+        <!-- Segmented Control -->
+        <div class="bg-gray-200 rounded-xl p-1 flex">
+            <button @click="activeTab='labor'" class="flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300" :class="activeTab==='labor'?'bg-white shadow-sm text-gray-900':'text-gray-600'"><i class="fas fa-heartbeat mr-2"></i>产程评估</button>
+            <button @click="activeTab='pph'" class="flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300" :class="activeTab==='pph'?'bg-white shadow-sm text-gray-900':'text-gray-600'"><i class="fas fa-exclamation-circle mr-2"></i>PPH复苏</button>
+        </div>
+    </div>
+</header>
+
+<main class="max-w-4xl mx-auto px-4 py-6">
+<transition name="slide" mode="out-in">
+
+<!-- ==================== 产程评估页面 ==================== -->
+<div v-if="activeTab==='labor'" key="labor" class="space-y-4">
+
+    <!-- 基础背景 -->
+    <div class="bg-white rounded-2xl p-5 shadow-sm">
+        <div class="flex items-center mb-4">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center mr-3"><i class="fas fa-user text-white"></i></div>
+            <div><h2 class="text-lg font-semibold text-gray-900">基础背景</h2><p class="text-xs text-gray-500">Basic Information</p></div>
+        </div>
+        <div class="space-y-4">
+            <div class="flex items-center justify-between py-2.5 border-b border-gray-100">
+                <span class="text-gray-700 text-sm">孕周</span>
+                <div class="flex items-center"><input type="number" v-model.number="laborForm.gestational_age" step="0.1" min="20" max="42" class="w-20 text-right text-blue-500 font-semibold bg-transparent text-sm"><span class="text-gray-500 text-sm ml-1">周</span></div>
+            </div>
+            <div class="flex items-center justify-between py-2.5 border-b border-gray-100">
+                <span class="text-gray-700 text-sm">产次</span>
+                <input type="number" v-model.number="laborForm.parity" min="0" class="w-20 text-right text-blue-500 font-semibold bg-transparent text-sm">
+            </div>
+            <!-- 高危因素 -->
+            <div class="py-2">
+                <div class="flex items-center mb-3"><i class="fas fa-exclamation-triangle text-orange-500 text-xs mr-2"></i><span class="text-gray-700 text-sm font-medium">高危因素（点击展开）</span></div>
+                <div class="space-y-2">
+                    <div v-for="item in comorbidityOptions" :key="item.value" class="rounded-xl overflow-hidden border-2 transition-all" :class="selectedComorbidities.includes(item.value)?'border-orange-400 bg-orange-50':'border-gray-200 bg-white'">
+                        <div @click="toggleComorbidity(item)" class="flex items-center justify-between px-4 py-3.5 cursor-pointer active:bg-gray-100">
+                            <div class="flex items-center">
+                                <div class="w-6 h-6 rounded-full border-2 flex items-center justify-center mr-3 transition-all" :class="selectedComorbidities.includes(item.value)?'bg-orange-400 border-orange-400':'border-gray-300'"><i v-if="selectedComorbidities.includes(item.value)" class="fas fa-check text-white text-xs"></i></div>
+                                <span class="text-sm font-medium" :class="selectedComorbidities.includes(item.value)?'text-orange-600':'text-gray-700'">{{ item.label }}</span>
+                            </div>
+                            <i class="fas fa-chevron-down text-xs text-gray-400 transition-transform" :class="{ 'rotate-180': selectedComorbidities.includes(item.value) }"></i>
+                        </div>
+                        <transition name="ex-a">
+                            <div v-if="selectedComorbidities.includes(item.value)&&item.children" class="bg-white border-t border-orange-200 p-4 ex-wrap">
+                                <div class="space-y-4">
+                                    <div v-for="child in item.children" :key="child.key">
+                                        <label class="text-xs text-gray-500 font-medium">{{ child.label }}</label>
+                                        <div v-if="child.type==='select-grid'" class="grid grid-cols-3 gap-2 mt-2">
+                                            <button v-for="opt in child.options" :key="opt.value" @click="setComorbidityDetail(item.value,child.key,opt.value)" class="py-2 rounded-xl text-xs font-medium transition-all" :class="getDetailValue(item.value,child.key)===opt.value?'bg-blue-500 text-white shadow':'bg-gray-100 text-gray-700'">{{ opt.label }}</button>
+                                        </div>
+                                        <div v-else-if="child.type==='switch'" class="flex items-center justify-between mt-2 py-1">
+                                            <span class="text-sm text-gray-700">{{ child.yesLabel }}</span>
+                                            <button @click="setComorbidityDetail(item.value,child.key,!getDetailValue(item.value,child.key))" class="w-14 h-8 rounded-full transition-all relative" :class="getDetailValue(item.value,child.key)?'bg-green-500':'bg-gray-300'"><span class="absolute top-1 w-6 h-6 bg-white rounded-full shadow transition-all" :class="getDetailValue(item.value,child.key)?'left-7':'left-1'"></span></button>
+                                        </div>
+                                        <div v-else-if="child.type==='number'" class="flex items-center mt-2">
+                                            <input type="number" v-model.number="comorbiditiesDetail[item.value][child.key]" :placeholder="child.placeholder" class="flex-1 bg-gray-100 rounded-xl px-4 py-2.5 text-sm text-blue-500 font-medium"><span v-if="child.unit" class="text-xs text-gray-400 ml-2">{{ child.unit }}</span>
+                                        </div>
+                                        <div v-else-if="child.type==='bmi-calc'" class="space-y-3 mt-2">
+                                            <div class="flex items-center space-x-3">
+                                                <input type="number" v-model.number="comorbiditiesDetail[item.value].height" placeholder="身高(cm)" class="flex-1 bg-gray-100 rounded-xl px-4 py-2.5 text-sm text-blue-500 font-medium">
+                                                <span class="text-gray-400">×</span>
+                                                <input type="number" v-model.number="comorbiditiesDetail[item.value].weight" placeholder="体重(kg)" class="flex-1 bg-gray-100 rounded-xl px-4 py-2.5 text-sm text-blue-500 font-medium">
+                                            </div>
+                                            <div v-if="comorbiditiesDetail[item.value].height&&comorbiditiesDetail[item.value].weight" class="bg-blue-50 rounded-xl px-4 py-2 text-center"><span class="text-blue-600 font-semibold">BMI = {{ calculatedBMI(item.value) }}</span><span class="text-xs text-gray-500 ml-2">{{ bmiCategory(item.value) }}</span></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </transition>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 实时体征 -->
+    <div class="bg-white rounded-2xl p-5 shadow-sm">
+        <div class="flex items-center mb-4">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center mr-3"><i class="fas fa-heartbeat text-white"></i></div>
+            <div><h2 class="text-lg font-semibold text-gray-900">实时体征</h2><p class="text-xs text-gray-500">Vital Signs</p></div>
+        </div>
+        <div class="space-y-4">
+            <div class="flex items-center justify-between py-2.5 border-b border-gray-100">
+                <span class="text-gray-700 text-sm">胎心率</span>
+                <div class="flex items-center"><input type="number" v-model.number="laborForm.fetal_heart_rate" min="80" max="200" class="w-20 text-right text-blue-500 font-semibold bg-transparent text-sm"><span class="text-gray-500 text-sm ml-1">bpm</span></div>
+            </div>
+            <div class="flex items-center justify-between py-2.5 border-b border-gray-100">
+                <span class="text-gray-700 text-sm">血压</span>
+                <input type="text" v-model="laborForm.blood_pressure" placeholder="120/80" class="w-28 text-right text-blue-500 font-semibold bg-transparent text-sm">
+            </div>
+            <div class="flex items-center justify-between py-2.5 border-b border-gray-100">
+                <span class="text-gray-700 text-sm">出血量</span>
+                <div class="flex items-center"><input type="number" v-model.number="laborForm.blood_loss" min="0" class="w-20 text-right text-blue-500 font-semibold bg-transparent text-sm"><span class="text-gray-500 text-sm ml-1">ml</span></div>
+            </div>
+            <div class="py-2">
+                <span class="text-gray-700 text-sm block mb-2">羊水性状</span>
+                <div class="grid grid-cols-4 gap-2">
+                    <button v-for="opt in ['清','I度','II度','III度']" :key="opt" @click="laborForm.amniotic_fluid=opt" class="py-2.5 rounded-xl text-xs font-medium transition-all" :class="laborForm.amniotic_fluid===opt?'bg-blue-500 text-white shadow':'bg-gray-100 text-gray-700'">{{ opt }}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 产程进展 -->
+    <div class="bg-white rounded-2xl p-5 shadow-sm">
+        <div class="flex items-center mb-4">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center mr-3"><i class="fas fa-chart-line text-white"></i></div>
+            <div><h2 class="text-lg font-semibold text-gray-900">产程进展</h2><p class="text-xs text-gray-500">Labor Progress</p></div>
+        </div>
+        <div class="space-y-5">
+            <div class="py-2">
+                <div class="flex items-center justify-between mb-3"><span class="text-gray-700 text-sm">宫口开大</span><span class="text-blue-500 font-bold text-lg">{{ laborForm.cervical_dilation }} cm</span></div>
+                <input type="range" v-model.number="laborForm.cervical_dilation" min="0" max="10" step="0.5" class="w-full slider-ios slider-track" :style="{ '--progress': (laborForm.cervical_dilation/10*100)+'%' }">
+                <div class="flex justify-between mt-2"><span class="text-[10px] text-gray-400">0</span><span class="text-[10px] text-gray-400">5</span><span class="text-[10px] text-gray-400">10</span></div>
+            </div>
+            <div class="flex items-center justify-between py-2.5 border-b border-gray-100">
+                <span class="text-gray-700 text-sm">先露高低</span>
+                <select v-model.number="laborForm.fetal_presentation_level" class="bg-gray-100 rounded-xl px-4 py-2.5 text-blue-500 font-semibold text-sm"><option v-for="n in [-3,-2,-1,0,1,2,3]" :key="n" :value="n">{{ n }}</option></select>
+            </div>
+            <div class="py-2">
+                <span class="text-gray-700 text-sm block mb-2">宫缩强度</span>
+                <div class="grid grid-cols-4 gap-2">
+                    <button v-for="opt in [{label:'弱',value:'弱'},{label:'中',value:'中'},{label:'强',value:'强'},{label:'持续性',value:'持续性强烈宫缩'}]" :key="opt.value" @click="laborForm.contraction_strength=opt.value" class="py-2.5 rounded-xl text-xs font-medium transition-all" :class="laborForm.contraction_strength===opt.value?'bg-blue-500 text-white shadow':'bg-gray-100 text-gray-700'">{{ opt.label }}</button>
+                </div>
+            </div>
+            <div class="flex items-center justify-between py-2.5">
+                <span class="text-gray-700 text-sm">胎儿双顶径</span>
+                <div class="flex items-center"><input type="number" v-model.number="laborForm.fetal_biparietal_diameter" step="0.1" min="7" max="10" class="w-16 text-right text-blue-500 font-semibold bg-transparent text-sm"><span class="text-gray-500 text-sm ml-1">cm</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ AI 结果展示 (重构版) ============ -->
+    <div v-if="laborResult&&!showLaborCritical" class="space-y-3">
+
+        <!-- 流式输出中 -->
+        <div v-if="isStreaming" class="rc urg-low card-in">
+            <div class="rc-hd" style="background:linear-gradient(135deg,#f5f5f7 0%,#e8e8ed 100%)">
+                <div class="rc-icon bg-blue-100"><i class="fas fa-brain text-blue-500"></i></div>
+                <div class="rc-info"><p class="text-xs text-gray-500">AI 分析中</p><p class="text-sm font-semibold text-gray-800">正在生成评估报告...</p></div>
+                <span class="rc-badge bg-blue-100 text-blue-600">实时生成</span>
+            </div>
+            <div class="stream-box">
+                <div v-if="streamingText" class="w-full px-4 pb-4 text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{{ streamingText }}<span class="inline-block w-0.5 h-4 bg-blue-500 animate-pulse ml-0.5 align-middle"></span></div>
+                <div v-else class="stream-dots"><div class="stream-dot"></div><div class="stream-dot"></div><div class="stream-dot"></div></div>
+            </div>
+        </div>
+
+        <!-- 结构化卡片列表 - 默认折叠 -->
+        <template v-if="!isStreaming&&assessmentCards.length>0">
+            <div v-for="(card,idx) in assessmentCards" :key="card.id"
+                 class="rc card-in" :class="card.urgClass" :style="{ animationDelay: idx*70+'ms' }">
+                <!-- 头部：点击展开/收起 -->
+                <div class="rc-hd" @click="toggleCard(card.id)">
+                    <div class="rc-icon" :class="card.iconBg"><i :class="card.icon"></i></div>
+                    <div class="rc-info">
+                        <p class="text-xs text-gray-500 truncate">{{ card.category }}</p>
+                        <p class="text-base font-bold text-gray-900 truncate">{{ card.title }}</p>
+                    </div>
+                    <span class="rc-badge" :class="card.badgeCls">{{ card.badge }}</span>
+                    <i class="fas fa-chevron-down rc-chev" :class="{ on: !card.collapsed }"></i>
+                </div>
+
+                <!-- 折叠时显示摘要 -->
+                <div v-if="card.collapsed&&!card.isGuide" class="rc-sum">
+                    <div class="rc-sum-dot"></div>
+                    <div class="rc-sum-txt">{{ card.summary || (card.items[0]?card.items[0].val+' '+card.items[0].txt:'暂无详情') }}</div>
+                    <div class="rc-sum-n">{{ card.itemCount }} 条建议</div>
+                </div>
+                <div v-if="card.collapsed&&card.isGuide" class="rc-sum">
+                    <div class="rc-sum-dot" style="background:#5856d6"></div>
+                    <div class="rc-sum-txt">包含 {{ card.links.length }} 条权威医学指南链接</div>
+                    <div class="rc-sum-n" style="color:#5856d6;background:#edeef5">{{ card.links.length }} 条指南</div>
+                </div>
+
+                <!-- 展开内容 -->
+                <transition name="col-a">
+                    <div v-show="!card.collapsed" class="rc-bd">
+                        <!-- 普通卡片 -->
+                        <template v-if="!card.isGuide">
+                            <div v-for="(it,i) in card.items" :key="i" class="rc-it">
+                                <div class="rc-it-bullet" :style="{ background: it.dot||'#007AFF' }"></div>
+                                <span v-if="it.val" class="rc-it-val">{{ it.val }}</span>
+                                <span class="rc-it-txt">{{ it.txt }}</span>
+                            </div>
+                        </template>
+                        <!-- 指南卡片 -->
+                        <template v-else>
+                            <div v-for="(lk,i) in card.links" :key="i" class="glk mb-2 last:mb-0" @click="window.open(lk.url,'_blank')">
+                                <div class="glk-icon" :class="'bg-'+(lk.color?.replace('text-','')||'indigo')+'/20'"><i :class="[lk.icon,lk.color||'text-indigo-600','text-sm']"></i></div>
+                                <div class="min-w-0 flex-1">
+                                    <p class="text-sm font-medium text-gray-800 truncate">{{ lk.name }}</p>
+                                    <p class="text-xs text-gray-400 truncate">{{ lk.url.replace('https://www.','').split('/')[0] }}</p>
+                                </div>
+                                <i class="fas fa-arrow-up-right-from-square text-gray-300 text-xs shrink-0"></i>
+                            </div>
+                        </template>
+                    </div>
+                </transition>
+            </div>
+        </template>
+
+        <!-- 回退：原始文本 -->
+        <div v-if="!isStreaming&&assessmentCards.length===0&&rawText" class="rc urg-low card-in">
+            <div class="rc-hd" style="background:linear-gradient(135deg,#f5f5f7 0%,#e8e8ed 100%)">
+                <div class="rc-icon bg-blue-100"><i class="fas fa-file-alt text-blue-500"></i></div>
+                <div class="rc-info"><p class="text-sm font-semibold text-gray-800">分析报告</p></div>
+            </div>
+            <div class="rc-bd"><p class="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{{ rawText.substring(0,600) }}{{ rawText.length>600?'...':'' }}</p></div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== PPH复苏页面 ==================== -->
+<div v-else key="pph" class="space-y-4">
+    <!-- 核心指标 -->
+    <div class="grid grid-cols-3 gap-3">
+        <div class="pph-metric-card rounded-2xl p-4 text-center" :class="{ 'pph-severe': pphData.accumulated_blood_loss>=1500 }">
+            <p class="text-xs text-gray-500 mb-1">累积失血量 (ABL)</p>
+            <p class="text-3xl font-bold" :class="{ 'text-red-600': pphData.accumulated_blood_loss>=1500 }">{{ pphData.accumulated_blood_loss }}</p>
+            <p class="text-xs text-gray-500">ml</p>
+        </div>
+        <div class="pph-metric-card rounded-2xl p-4 text-center" :class="{ 'pph-severe': si>=1.5,'pph-warning': si>=1&&si<1.5 }">
+            <p class="text-xs text-gray-500 mb-1">休克指数 (SI)</p>
+            <p class="text-3xl font-bold" :class="siColorClass">{{ si }}</p>
+            <p class="text-xs text-gray-500">HR/SBP</p>
+        </div>
+        <div class="pph-metric-card rounded-2xl p-4 text-center">
+            <p class="text-xs text-gray-500 mb-1">平均动脉压 (MAP)</p>
+            <p class="text-3xl font-bold text-gray-900">{{ map }}</p>
+            <p class="text-xs text-gray-500">mmHg</p>
+        </div>
+    </div>
+
+    <!-- MTP 预警 -->
+    <div v-if="pphNeedMtp" class="bg-red-500 rounded-2xl p-4 pulse-critical">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center"><i class="fas fa-bell text-2xl text-white mr-4"></i><div><p class="text-white font-bold text-lg">【紧急启动MTP预案】</p><p class="text-white/90 text-sm">请立即通知：麻醉医生、血库、产科主任</p></div></div>
+            <button @click="pphNeedMtp=false" class="px-4 py-2 bg-white rounded-xl text-red-500 font-bold text-sm">已通知</button>
+        </div>
+    </div>
+
+    <!-- 出血量输入 -->
+    <div class="bg-white rounded-2xl p-5 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+            <label class="text-gray-900 font-semibold">累积出血量</label>
+            <div class="flex items-center"><input type="number" v-model.number="pphData.accumulated_blood_loss" class="w-32 bg-gray-100 rounded-xl px-4 py-2 text-2xl font-bold text-center text-gray-900" min="0"><span class="text-gray-500 ml-2">ml</span></div>
+        </div>
+        <input type="range" v-model.number="pphData.accumulated_blood_loss" min="0" max="3000" step="50" class="w-full h-3 rounded-full appearance-none cursor-pointer" style="background:linear-gradient(to right,#34C759 0%,#FF9500 50%,#FF3B30 100%)">
+        <div class="flex justify-between text-xs text-gray-400 mt-2"><span>0</span><span>500</span><span>1000</span><span>1500</span><span>2000</span><span>3000ml</span></div>
+    </div>
+
+    <!-- 生命体征 -->
+    <div class="bg-white rounded-2xl p-5 shadow-sm">
+        <h3 class="text-gray-900 font-semibold mb-4 flex items-center"><i class="fas fa-heartbeat text-red-500 mr-2"></i>生命体征</h3>
+        <div class="grid grid-cols-2 gap-4">
+            <div class="flex items-center justify-between"><span class="text-gray-600 text-sm">心率 (HR)</span><div class="flex items-center"><input type="number" v-model.number="pphData.heart_rate" class="w-20 bg-gray-100 rounded-lg px-2 py-1 text-right text-gray-900 font-medium"><span class="text-gray-400 text-xs ml-1">bpm</span></div></div>
+            <div class="flex items-center justify-between"><span class="text-gray-600 text-sm">收缩压 (SBP)</span><div class="flex items-center"><input type="number" v-model.number="pphData.systolic_bp" class="w-20 bg-gray-100 rounded-lg px-2 py-1 text-right text-gray-900 font-medium"><span class="text-gray-400 text-xs ml-1">mmHg</span></div></div>
+            <div class="flex items-center justify-between"><span class="text-gray-600 text-sm">舒张压 (DBP)</span><div class="flex items-center"><input type="number" v-model.number="pphData.diastolic_bp" class="w-20 bg-gray-100 rounded-lg px-2 py-1 text-right text-gray-900 font-medium"><span class="text-gray-400 text-xs ml-1">mmHg</span></div></div>
+            <div class="flex items-center justify-between"><span class="text-gray-600 text-sm">SpO2</span><div class="flex items-center"><input type="number" v-model.number="pphData.spo2" class="w-20 bg-gray-100 rounded-lg px-2 py-1 text-right text-gray-900 font-medium"><span class="text-gray-400 text-xs ml-1">%</span></div></div>
+            <div class="flex items-center justify-between"><span class="text-gray-600 text-sm">每小时尿量</span><div class="flex items-center"><input type="number" v-model.number="pphData.urine_output" class="w-20 bg-gray-100 rounded-lg px-2 py-1 text-right text-gray-900 font-medium"><span class="text-gray-400 text-xs ml-1">ml/h</span></div></div>
+            <div class="flex items-center justify-between"><span class="text-gray-600 text-sm">GCS评分</span><select v-model.number="pphData.gcs" class="w-20 bg-gray-100 rounded-lg px-2 py-1 text-gray-900 font-medium"><option v-for="g in 13" :key="g" :value="15-g+1">{{ 15-g+1 }}</option></select></div>
+        </div>
+    </div>
+
+    <!-- 实验室指标 -->
+    <div class="bg-white rounded-2xl p-5 shadow-sm">
+        <h3 class="text-gray-900 font-semibold mb-4 flex items-center"><i class="fas fa-flask text-purple-500 mr-2"></i>实验室指标 <span class="text-xs text-gray-400 ml-2">(可选)</span></h3>
+        <div class="grid grid-cols-2 gap-4">
+            <div class="flex items-center justify-between"><span class="text-gray-600 text-sm">血红蛋白 (Hb)</span><div class="flex items-center"><input type="number" v-model.number="pphData.hemoglobin" placeholder="--" class="w-20 bg-gray-100 rounded-lg px-2 py-1 text-right text-gray-900 font-medium"><span class="text-gray-400 text-xs ml-1">g/L</span></div></div>
+            <div class="flex items-center justify-between"><span class="text-gray-600 text-sm">纤维蛋白原 (Fib)</span><div class="flex items-center"><input type="number" v-model.number="pphData.fibrinogen" placeholder="--" step="0.1" class="w-20 bg-gray-100 rounded-lg px-2 py-1 text-right text-gray-900 font-medium"><span class="text-gray-400 text-xs ml-1">g/L</span></div></div>
+        </div>
+    </div>
+
+    <!-- PPH 分析结果 -->
+    <div v-if="pphError" class="rc urg-crit card-in">
+        <div class="rc-hd"><div class="rc-icon bg-red-100"><i class="fas fa-exclamation-circle text-red-500"></i></div><div class="rc-info"><p class="font-semibold text-red-700">分析异常</p></div></div>
+        <div class="rc-bd"><p class="text-red-600 text-sm">{{ pphError }}</p></div>
+    </div>
+
+    <div v-if="pphResult&&!pphError" class="space-y-3">
+        <!-- 休克分级 -->
+        <div class="pph-rc card-in relative" style="border-left:4px solid" :style="{ borderColor: pphShockColor }">
+            <div class="info-btn" @click.stop="toggleInfo('shock')"><i class="fas fa-info-circle text-xs"></i></div>
+            <div class="info-popover" :class="{ 'show': activeInfo === 'shock' }">
+                <div class="info-popover-title"><i class="fas fa-book-medical mr-2 text-blue-500"></i>休克指数评估依据</div>
+                <ul class="list-disc pl-4 space-y-1">
+                    <li><strong>公式</strong>：SI = 心率 / 收缩压</li>
+                    <li><strong>正常</strong>：0.5 ~ 0.7</li>
+                    <li><strong>轻度休克</strong>：SI ≈ 1.0 (失血 20%~30%)</li>
+                    <li><strong>中度休克</strong>：SI ≈ 1.5 (失血 30%~40%)</li>
+                    <li><strong>重度休克</strong>：SI ≥ 2.0 (失血 > 40%)</li>
+                </ul>
+                <p class="mt-2 text-[10px] text-gray-400 border-t border-gray-100 pt-2">参考：《妇产科学（第10版）》</p>
+            </div>
+            <div class="pph-rc-hd">
+                <div><p class="text-xs text-gray-500">休克程度</p><p class="text-2xl font-bold" :style="{ color: pphShockColor }">{{ pphResult.indicators.shock_level }}</p></div>
+                <div class="text-right"><p class="text-xs text-gray-500">处理建议</p><p class="text-gray-700 font-medium text-sm">{{ pphResult.indicators.shock_advice }}</p></div>
+            </div>
+        </div>
+
+        <!-- MTP 方案 -->
+        <div v-if="pphResult.need_mtp" class="rc urg-crit card-in relative">
+            <div class="info-btn" @click.stop="toggleInfo('mtp')"><i class="fas fa-info-circle text-xs"></i></div>
+            <div class="info-popover" :class="{ 'show': activeInfo === 'mtp' }">
+                <div class="info-popover-title"><i class="fas fa-book-medical mr-2 text-blue-500"></i>大量输血预案(MTP)依据</div>
+                <ul class="list-disc pl-4 space-y-1">
+                    <li><strong>启动指征</strong>：失血量≥1500ml或休克指数>1.0或严重凝血功能障碍。</li>
+                    <li><strong>输血比例</strong>：建议红细胞(RBC):血浆(FFP):血小板(PLT)的比例为1:1:1。</li>
+                    <li><strong>纤维蛋白原</strong>：若<2g/L或出血难以控制，应及时补充冷沉淀或纤维蛋白原。</li>
+                </ul>
+                <p class="mt-2 text-[10px] text-gray-400 border-t border-gray-100 pt-2">参考：《产后出血预防与处理指南（2023年版）》</p>
+            </div>
+            <div class="rc-hd" style="background:linear-gradient(135deg,#fef2f2 0%,#fee2e2 100%)">
+                <div class="rc-icon bg-red-100"><i class="fas fa-bell text-red-600"></i></div>
+                <div class="rc-info"><p class="font-bold text-red-700">大量输血方案 (MTP)</p></div>
+            </div>
+            <div class="rc-bd">
+                <div class="grid grid-cols-5 gap-2 mb-3">
+                    <div v-for="(u,p) in pphResult.resuscitation.mtp_units" :key="p" class="bg-white rounded-xl p-2 text-center shadow-sm" v-show="u>0"><p class="text-xl font-bold text-gray-900">{{ u }}</p><p class="text-xs text-gray-500">{{ p }}</p></div>
+                </div>
+                <div class="bg-red-50 rounded-xl p-3 text-sm border border-red-100"><p class="text-red-600 font-medium">输血比例：红细胞 : 血浆 : 血小板 = 1 : 1 : 1</p></div>
+            </div>
+        </div>
+
+        <!-- 容量复苏 -->
+        <div class="rc urg-low card-in relative">
+            <div class="info-btn" @click.stop="toggleInfo('infusion')"><i class="fas fa-info-circle text-xs"></i></div>
+            <div class="info-popover" :class="{ 'show': activeInfo === 'infusion' }">
+                <div class="info-popover-title"><i class="fas fa-book-medical mr-2 text-blue-500"></i>容量复苏计算依据</div>
+                <ul class="list-disc pl-4 space-y-1">
+                    <li><strong>补液量</strong>：晶体液需补充失血量的3倍，胶体液等量补充(1:1)。</li>
+                    <li><strong>复苏速度</strong>：首剂20ml/kg快速静滴，后续根据休克程度和尿量调整。</li>
+                    <li><strong>低血压目标</strong>：活动性出血时，维持收缩压80~90mmHg，以防血栓脱落再出血。</li>
+                </ul>
+                <p class="mt-2 text-[10px] text-gray-400 border-t border-gray-100 pt-2">参考：《产后出血预防与处理指南（2023年版）》</p>
+            </div>
+            <div class="rc-hd"><div class="rc-icon bg-blue-100"><i class="fas fa-tint text-blue-500"></i></div><div class="rc-info"><p class="font-bold text-gray-800">容量复苏计划</p></div></div>
+            <div class="rc-bd">
+                <div class="grid grid-cols-3 gap-3 mb-3">
+                    <div v-for="(r,ph) in pphResult.resuscitation.infusion_speed" :key="ph" class="bg-blue-50 rounded-xl p-3 text-center"><p class="text-xs text-gray-500">{{ ph }}</p><p class="text-lg font-bold text-blue-600">{{ r }}</p></div>
+                </div>
+                <div class="bg-gray-50 rounded-xl p-3 text-xs text-gray-600 border border-gray-100">允许性低血压目标：SBP 80-90 mmHg | MAP 50-60 mmHg</div>
+            </div>
+        </div>
+
+        <!-- 宫缩剂 -->
+        <div class="rc urg-med card-in relative">
+            <div class="info-btn" @click.stop="toggleInfo('uterotonic')"><i class="fas fa-info-circle text-xs"></i></div>
+            <div class="info-popover" :class="{ 'show': activeInfo === 'uterotonic' }">
+                <div class="info-popover-title"><i class="fas fa-book-medical mr-2 text-blue-500"></i>宫缩剂与止血用药依据</div>
+                <ul class="list-disc pl-4 space-y-1">
+                    <li><strong>缩宫素</strong>：首选，静滴或肌注，24小时总量≤60U，预防受体饱和。</li>
+                    <li><strong>前列腺素制剂</strong>：如卡前列素氨丁三醇，哮喘等禁忌症需注意，单次250μg。</li>
+                    <li><strong>氨甲环酸</strong>：确诊PPH后应在3小时内尽早给予，1g静注(>10min)。</li>
+                </ul>
+                <p class="mt-2 text-[10px] text-gray-400 border-t border-gray-100 pt-2">参考：《产后出血预防与处理指南（2023年版）》</p>
+            </div>
+            <div class="rc-hd"><div class="rc-icon bg-orange-100"><i class="fas fa-syringe text-orange-500"></i></div><div class="rc-info"><p class="font-bold text-gray-800">宫缩剂方案</p></div></div>
+            <div class="rc-bd space-y-2">
+                <div v-for="(u,d) in pphResult.resuscitation.uterotonic" :key="d" class="bg-orange-50 rounded-xl p-3 border-l-4 border-orange-300"><p class="text-orange-700 font-semibold text-sm">{{ d }}</p><p class="text-gray-600 text-xs mt-1 leading-relaxed">{{ u }}</p></div>
+            </div>
+        </div>
+
+        <!-- 监测流程 -->
+        <div class="rc urg-low card-in">
+            <div class="rc-hd"><div class="rc-icon bg-green-100"><i class="fas fa-clipboard-list text-green-500"></i></div><div class="rc-info"><p class="font-bold text-gray-800">监测与操作流程</p></div></div>
+            <div class="rc-bd space-y-2">
+                <div v-for="(s,i) in pphResult.resuscitation.monitoring" :key="i" class="flex items-start bg-gray-50 rounded-lg p-3"><span class="w-6 h-6 rounded-full bg-green-500 text-white text-xs flex items-center justify-center mr-3 shrink-0 font-bold">{{ i+1 }}</span><p class="text-gray-700 text-sm leading-relaxed">{{ s }}</p></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</transition>
+</main>
+
+<!-- 底部按钮 -->
+<div class="fixed bottom-0 left-0 right-0 p-4 bg-white/95 backdrop-blur-xl border-t border-gray-200">
+    <div class="max-w-4xl mx-auto">
+        <button @click="submitAnalysis" :disabled="isLoading" class="w-full py-4 rounded-2xl text-white font-bold text-lg shadow-lg transition-all flex items-center justify-center" :class="isLoading?'bg-gray-400':'bg-blue-500 active:bg-blue-600'">
+            <span v-if="isLoading"><i class="fas fa-circle-notch fa-spin mr-3"></i>分析中...</span>
+            <span v-else><i class="fas fa-play mr-3"></i>{{ activeTab==='labor'?'开始专家评估':'开始复苏分析' }}</span>
+        </button>
+    </div>
+</div>
+
+<!-- 设置模态框 -->
+<transition name="fade">
+    <div v-if="showSettings" class="fixed inset-0 z-50 bg-black/40 flex items-end justify-center" @click.self="showSettings=false">
+        <div class="bg-white w-full max-w-2xl rounded-t-3xl p-6 slide-up">
+            <div class="flex items-center justify-between mb-6"><h2 class="text-xl font-bold text-gray-900">API 配置</h2><button @click="showSettings=false" class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500"><i class="fas fa-times"></i></button></div>
+            <div class="space-y-4">
+                <div class="bg-gray-100 rounded-2xl p-4"><label class="text-xs text-gray-500 block mb-2">API Key</label><input type="password" v-model="apiConfig.apiKey" placeholder="sk-xxxxxxxxxxxxxxxx" class="w-full bg-transparent text-gray-900 text-sm outline-none"></div>
+                <div class="bg-gray-100 rounded-2xl p-4"><label class="text-xs text-gray-500 block mb-2">Base URL</label><input type="text" v-model="apiConfig.baseUrl" placeholder="https://api.deepseek.com/v1" class="w-full bg-transparent text-gray-900 text-sm outline-none"></div>
+                <div class="bg-gray-100 rounded-2xl p-4"><label class="text-xs text-gray-500 block mb-2">Model Name</label><input type="text" v-model="apiConfig.modelName" placeholder="deepseek-chat" class="w-full bg-transparent text-gray-900 text-sm outline-none"></div>
+            </div>
+            <button @click="saveApiConfig" class="w-full mt-6 py-4 rounded-2xl bg-blue-500 text-white font-bold text-lg">保存配置</button>
+            <p class="text-center text-xs text-gray-400 mt-4">配置将保存在本地浏览器中</p>
+        </div>
+    </div>
+</transition>
+
+<!-- 紧急警报 -->
+<div v-if="showLaborCritical" class="fixed inset-0 z-[9999] bg-black/70 flex items-center justify-center p-6">
+    <div class="bg-white w-full max-w-sm rounded-3xl overflow-hidden text-center shadow-2xl">
+        <div class="bg-gradient-to-br from-red-500 to-orange-500 px-6 py-10">
+            <div class="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-4 animate-pulse"><i class="fas fa-exclamation-triangle text-white text-4xl"></i></div>
+            <h2 class="text-2xl font-bold text-white mb-2">紧急预警</h2><p class="text-white/90 text-sm">请立即采取行动</p>
+        </div>
+        <div class="p-6">
+            <div class="bg-red-50 rounded-2xl p-4 mb-4">
+                <p class="text-red-600 font-semibold text-sm mb-2"><i class="fas fa-exclamation-circle mr-2"></i>检测到危险指标：</p>
+                <ul class="text-red-600 text-sm space-y-1 text-left"><li v-for="(a,i) in criticalAlerts" :key="'a'+i">{{ a }}</li></ul>
+            </div>
+            <div class="bg-gray-100 rounded-2xl p-4 mb-4">
+                <p class="text-gray-700 font-medium text-sm mb-2"><i class="fas fa-phone-alt text-blue-500 mr-2"></i>建议立即呼叫：</p>
+                <div class="flex flex-wrap gap-2 justify-center"><span v-for="(p,i) in criticalContacts" :key="'p'+i" class="px-3 py-1 bg-blue-500 text-white text-xs rounded-full font-medium">{{ p }}</span></div>
+            </div>
+            <button @click="showLaborCritical=false;showSettings=false" class="w-full py-4 rounded-2xl bg-red-500 text-white font-bold text-lg active:bg-red-600">我已知晓</button>
+        </div>
+    </div>
+</div>
+
+</div>
+
+<script>
+const { createApp, ref, computed, reactive, onMounted, watch } = Vue
+
+createApp({
+setup() {
+    const activeTab = ref('labor')
+    const showSettings = ref(false)
+    const isLoading = ref(false)
+    const showLaborCritical = ref(false)
+    const criticalAlerts = ref([])
+    const criticalContacts = ref([])
+
+    // API
+    const apiConfig = reactive({ apiKey: '', baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', modelName: 'qwen-plus' })
+
+    // 产程表单
+    const laborForm = reactive({
+        gestational_age: 39, parity: 0, cervical_dilation: 5, fetal_presentation_level: 0,
+        fetal_heart_rate: 140, blood_pressure: '120/80', contraction_strength: '中',
+        amniotic_fluid: '清', fetal_biparietal_diameter: 9.0, blood_loss: 0, comorbidities: []
+    })
+
+    const comorbiditiesDetail = reactive({})
+    const selectedComorbidities = ref([])
+    const laborResult = ref(null)
+    const rawText = ref('')
+    const assessmentCards = ref([])
+
+    // 高危选项
+    const comorbidityOptions = [
+        { label: '胎盘早剥', value: '胎盘早剥', children: [{ key: 'degree', label: '分型', type: 'select-grid', options: [{label:'I度',value:'I度'},{label:'II度',value:'II度'},{label:'III度',value:'III度'}] }, { key: 'bleeding', label: '出血量', type: 'number', placeholder: '0', unit: 'ml' }, { key: 'abdominalPain', label: '持续腹痛', type: 'switch', yesLabel: '有' }] },
+        { label: '前置胎盘', value: '前置胎盘', children: [{ key: 'type', label: '类型', type: 'select-grid', options: [{label:'完全性',value:'完全性'},{label:'部分性',value:'部分性'},{label:'边缘性',value:'边缘性'},{label:'低置',value:'低置胎盘'}] }] },
+        { label: '胎膜早破', value: '胎膜早破', children: [{ key: 'time', label: '破膜时间', type: 'number', placeholder: '0', unit: '小时' }, { key: 'fluidCharacter', label: '羊水性状', type: 'select-grid', options: [{label:'清',value:'清'},{label:'混浊',value:'混浊'},{label:'臭味',value:'臭味'}] }, { key: 'temperature', label: '体温', type: 'number', placeholder: '36.5', unit: '℃' }] },
+        { label: '子痫前期', value: '子痫前期', children: [{ key: 'headache', label: '头痛/眼花', type: 'switch', yesLabel: '有' }, { key: 'proteinuria', label: '蛋白尿', type: 'select-grid', options: [{label:'阴性',value:'阴性'},{label:'+',value:'+'},{label:'++',value:'++'},{label:'+++',value:'+++'},{label:'++++',value:'++++'}] }] },
+        { label: '瘢痕子宫', value: '瘢痕子宫', children: [{ key: 'csCount', label: '剖宫产次数', type: 'number', placeholder: '1', unit: '次' }, { key: 'lastInterval', label: '末次间隔', type: 'number', placeholder: '2', unit: '年' }] },
+        { label: '高龄产妇', value: '高龄产妇', children: [{ key: 'age', label: '年龄', type: 'select-grid', options: [{label:'≥35岁',value:'35'},{label:'≥40岁',value:'40'},{label:'≥45岁',value:'45'}] }, { key: 'art', label: '辅助生殖史', type: 'switch', yesLabel: '有' }] },
+        { label: '肥胖', value: '肥胖', children: [{ key: 'bmi', label: 'BMI计算器', type: 'bmi-calc' }] },
+        { label: '心脏病', value: '心脏病', children: [{ key: 'nyha', label: '心功能分级', type: 'select-grid', options: [{label:'I级',value:'I'},{label:'II级',value:'II'},{label:'III级',value:'III'},{label:'IV级',value:'IV'}] }, { key: 'diagnosis', label: '具体诊断', type: 'select-grid', options: [{label:'先心病',value:'先心病'},{label:'心律失常',value:'心律失常'},{label:'心肌病',value:'心肌病'}] }] },
+        { label: '妊娠期糖尿病', value: '妊娠期糖尿病', children: null },
+        { label: '双胎', value: '双胎', children: null }
+    ]
+
+    // PPH
+    const pphData = reactive({ accumulated_blood_loss: 500, heart_rate: 90, systolic_bp: 110, diastolic_bp: 70, spo2: 98, urine_output: 50, gcs: 15, hemoglobin: null, hematocrit: null, fibrinogen: null, lactate: null, gestational_age: 39, parity: 1, blood_type: null })
+    const pphResult = ref(null)
+    const pphNeedMtp = ref(false)
+    const pphError = ref(null)
+    const activeInfo = ref(null)
+
+    const toggleInfo = (type) => {
+        if (activeInfo.value === type) {
+            activeInfo.value = null
+        } else {
+            activeInfo.value = type
+        }
+    }
+
+    // 流式状态
+    const isStreaming = ref(false)
+    const streamingText = ref('')
+
+    // 计算属性
+    const si = computed(() => { if (pphData.systolic_bp <= 0) return '0.00'; return (pphData.heart_rate / pphData.systolic_bp).toFixed(2) })
+    const map = computed(() => Math.round((pphData.systolic_bp + 2 * pphData.diastolic_bp) / 3))
+    const siColorClass = computed(() => { const v = parseFloat(si.value); if (v < 1.0) return 'text-green-600'; if (v < 1.5) return 'text-orange-600'; return 'text-red-600' })
+    const pphShockColor = computed(() => { const v = parseFloat(si.value); if (v < 1.0) return '#34C759'; if (v < 1.5) return '#FF9500'; return '#FF3B30' })
+
+    // 方法
+    const toggleComorbidity = (item) => {
+        const idx = selectedComorbidities.value.indexOf(item.value)
+        if (idx > -1) { selectedComorbidities.value.splice(idx, 1); delete comorbiditiesDetail[item.value] }
+        else { selectedComorbidities.value.push(item.value); comorbiditiesDetail[item.value] = {} }
+        laborForm.comorbidities = [...selectedComorbidities.value]
+    }
+    const setComorbidityDetail = (c, k, v) => { if (!comorbiditiesDetail[c]) comorbiditiesDetail[c] = {}; comorbiditiesDetail[c][k] = v }
+    const getDetailValue = (c, k) => comorbiditiesDetail[c]?.[k]
+    const calculatedBMI = (c) => { const h = comorbiditiesDetail[c]?.height, w = comorbiditiesDetail[c]?.weight; if (h && w && h > 0) return (w / ((h / 100) ** 2)).toFixed(1); return null }
+    const bmiCategory = (c) => { const b = calculatedBMI(c); if (!b) return ''; if (b < 18.5) return '体重过低'; if (b < 24) return '正常'; if (b < 28) return '超重'; return '肥胖' }
+
+    const saveApiConfig = () => { localStorage.setItem('apiConfig', JSON.stringify(apiConfig)); showSettings.value = false }
+    const loadApiConfig = () => { const s = localStorage.getItem('apiConfig'); if (s) Object.assign(apiConfig, JSON.parse(s)) }
+
+    // ========== 解析AI结果为结构化卡片 (默认折叠) ==========
+    const parseResult = (text) => {
+        rawText.value = text || ''
+        assessmentCards.value = []
+        if (!text) return
+
+        // 幻觉过滤
+        const ct = text
+            .replace(/(?:主任医师|副主任医师|主治医师|住院医师|教授|副教授|讲师|主任|副主任|主治|住院|资深|专家|医生|医师|护师|护士长|护士)(?:\s*[（(][^）)]+[）)])?/g, '')
+            .replace(/\d{4}年\d{1,2}月\d{1,2}日/g, '')
+            .replace(/[\u4e00-\u9fa5]{2,4}(?:医生|主任|医师|教授|大夫)/g, '')
+            .replace(/此建议由[^。\n]+提供/g, '')
+            .replace(/以上为[^。\n]+的分析/g, '')
+            .replace(/【[^\]]*签名[^\]]*\]/g, '')
+            .trim()
+
+        let riskLevel = '低'
+        const rm = ct.match(/\*\*风险等级评分\*\*[：:]\s*[（(]?([^）)]+)[）)]?/) || ct.match(/风险等级[：:]\s*([低中高极高]+等?级?)/)
+        if (rm) {
+            const l = rm[1]
+            riskLevel = l.includes('极') ? '极高' : l.includes('高') ? '高' : l.includes('中') ? '中' : '低'
+        }
+
+        const lines = ct.split('\n').filter(l => l.trim())
+        let curSec = null, cid = 0, cards = []
+
+        for (const line of lines) {
+            const tl = line.trim()
+            if (/^\*\*.+\*\*$/.test(tl) || /^#{2,3}\s+.+/.test(tl)) {
+                const title = tl.replace(/^\*\*|\*\*$/g, '').replace(/^#{2,3}\s*/, '')
+                if (title.match(/风险等级|绝对禁令|输出格式|核心原则|分析结构/)) continue
+
+                let icon, ibg, bcls, badge, ucls, uord
+                const tlL = title.toLowerCase()
+
+                if (tlL.includes('风险识别') || tlL.includes('紧急评估') || tlL.includes('警报')) {
+                    icon = 'fas fa-exclamation-triangle'; ibg = 'bg-red-100'; bcls = 'bg-red-100 text-red-700'; badge = '紧急'; ucls = 'urg-crit'; uord = 4
+                } else if (tlL.includes('处理措施') || tlL.includes('容量复苏') || tlL.includes('止血药物') || tlL.includes('输血比例')) {
+                    icon = 'fas fa-clipboard-check'; ibg = 'bg-orange-100'; bcls = 'bg-orange-100 text-orange-700'; badge = '重要'; ucls = 'urg-high'; uord = 3
+                } else if (tlL.includes('呼叫建议') || tlL.includes('呼叫触发') || tlL.includes('监测') || tlL.includes('操作流程')) {
+                    icon = 'fas fa-phone-alt'; ibg = 'bg-yellow-100'; bcls = 'bg-yellow-100 text-yellow-700'; badge = '关注'; ucls = 'urg-med'; uord = 2
+                } else if (tlL.includes('新生儿') || tlL.includes('预案') || tlL.includes('参考')) {
+                    icon = 'fas fa-baby'; ibg = 'bg-green-100'; bcls = 'bg-green-100 text-green-700'; badge = '准备'; ucls = 'urg-low'; uord = 1
+                } else {
+                    icon = 'fas fa-file-medical-alt'; ibg = 'bg-blue-100'; bcls = 'bg-blue-100 text-blue-700'; badge = '信息'; ucls = 'urg-low'; uord = 1
+                }
+
+                curSec = {
+                    id: `c${++cid}`, category: '产程评估', title,
+                    icon, iconBg: ibg, badgeCls: bcls, badge,
+                    urgClass: ucls, urgencyOrder: uord,
+                    collapsed: true, itemCount: 0, summary: '',
+                    isGuide: false, items: []
+                }
+                cards.push(curSec)
+            } else if ((tl.startsWith('- ') || /^\d+[.)]/.test(tl)) && curSec) {
+                let txt = tl.replace(/^[-\d.)\s]+/, '').trim()
+                if (!txt) continue
+                txt = txt.replace(/[\u4e00-\u9fa5]{2,4}(?:医生|主任|医师|教授|大夫)/g, '')
+
+                let val = '', dot = '#007AFF'
+                const nm = txt.match(/(\d+(?:\.\d+)?)\s*(bpm|cm|ml|mmHg|周|次|%|°C|g\/L|mmol\/L)/i)
+                if (nm) val = nm[0]
+                if (txt.includes('立即') || txt.includes('紧急') || txt.includes('呼叫')) dot = '#FF3B30'
+                else if (txt.includes('注意') || txt.includes('警惕') || txt.includes('监测')) dot = '#FF9500'
+
+                curSec.items.push({ val, txt: txt.replace(val, ''), dot })
+                curSec.itemCount++
+                if (curSec.itemCount === 1) curSec.summary = (val ? val + ' ' : '') + txt.replace(val, '').substring(0, 60)
+            } else if (curSec && tl.length > 10 && !tl.startsWith('|') && !tl.startsWith('---')) {
+                curSec.items.push({ val: '', txt: tl, dot: '#8E8E93' })
+                curSec.itemCount++
+            }
+        }
+
+        cards.sort((a, b) => b.urgencyOrder - a.urgencyOrder)
+
+        if (cards.length === 0) {
+            const db = riskLevel === '极高' ? 'bg-red-100 text-red-700' : riskLevel === '高' ? 'bg-orange-100 text-orange-700' : riskLevel === '中' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'
+            const du = riskLevel === '极高' ? 'urg-crit' : riskLevel === '高' ? 'urg-high' : riskLevel === '中' ? 'urg-med' : 'urg-low'
+            cards.push({
+                id: 'c-default', category: '产程评估', title: '综合分析报告',
+                icon: 'fas fa-file-medical-alt', iconBg: 'bg-blue-100', badgeCls: db, badge: riskLevel,
+                urgClass: du, urgencyOrder: { 极高: 4, 高: 3, 中: 2, 低: 1 }[riskLevel] || 1,
+                collapsed: true, itemCount: 1, summary: ct.substring(0, 60),
+                isGuide: false, items: [{ val: '', txt: ct.substring(0, 500), dot: '#007AFF' }]
+            })
+        }
+
+        // 指南链接
+        const guides = []
+        if (laborForm.fetal_heart_rate < 110 || laborForm.fetal_heart_rate > 160) guides.push({ name: '新生儿复苏教程(NRP) 第8版', url: 'https://www.aap.org/en-us/learning-and-professional-development/education/nrp', icon: 'fas fa-baby', color: 'text-pink-600' })
+        if (laborForm.amniotic_fluid === 'III度' || laborForm.amniotic_fluid === 'II度') guides.push({ name: 'ACOG Practice Bulletin No.226', url: 'https://www.acog.org/clinical/clinical-guidance/practice-bulletin/articles/2023/12/intrapartum-fetal-heart-rate-monitoring', icon: 'fas fa-stethoscope', color: 'text-blue-600' })
+        if (laborForm.blood_loss > 300) guides.push({ name: '中国产后出血预防与处理指南(2023)', url: 'https://www.cma.org.cn/art/2023/7/14/art_45847_49468.html', icon: 'fas fa-tint', color: 'text-red-600' })
+        if (laborForm.comorbidities.includes('子痫前期')) guides.push({ name: '中国妊娠期高血压疾病诊治指南(2020)', url: 'https://www.cma.org.cn/art/2020/9/17/art_45847_48107.html', icon: 'fas fa-heartbeat', color: 'text-purple-600' })
+        if (laborForm.comorbidities.includes('瘢痕子宫')) guides.push({ name: 'ACOG Practice Bulletin No.205 (VBAC)', url: 'https://www.acog.org/clinical/clinical-guidance/practice-bulletin/articles/2019/11/vaginal-birth-after-cesarean-delivery', icon: 'fas fa-hospital', color: 'text-orange-600' })
+        if (laborForm.comorbidities.includes('前置胎盘')) guides.push({ name: '前置胎盘诊断与处理指南', url: 'https://www.cma.org.cn/art/2020/10/13/art_45847_48098.html', icon: 'fas fa-notes-medical', color: 'text-teal-600' })
+        if (laborForm.gestational_age < 37) guides.push({ name: 'ACOG Practice Bulletin No.234 (早产)', url: 'https://www.acog.org/clinical/clinical-guidance/practice-bulletin/articles/2023/12/management-of-preterm-labor', icon: 'fas fa-clock', color: 'text-indigo-600' })
+        if (laborForm.comorbidities.includes('妊娠期糖尿病')) guides.push({ name: '妊娠期糖尿病诊治指南(2022)', url: 'https://www.cma.org.cn/art/2022/7/15/art_45847_49358.html', icon: 'fas fa-vial', color: 'text-cyan-600' })
+        if (guides.length === 0) guides.push({ name: '妇产科学(第10版)', url: 'https://book.douban.com/subject/35329418/', icon: 'fas fa-book-medical', color: 'text-gray-600' })
+
+        if (guides.length > 0) {
+            cards.push({
+                id: 'c-guides', category: '参考指南', title: '相关医学指南',
+                icon: 'fas fa-book-open', iconBg: 'bg-indigo-100', badgeCls: 'bg-indigo-100 text-indigo-700', badge: `${guides.length}条`,
+                urgClass: 'urg-low', urgencyOrder: 0,
+                collapsed: true, itemCount: guides.length, summary: `包含 ${guides.length} 条权威医学指南`,
+                isGuide: true, links: guides
+            })
+        }
+
+        assessmentCards.value = cards
+    }
+
+    const toggleCard = (id) => { const c = assessmentCards.value.find(x => x.id === id); if (c) c.collapsed = !c.collapsed }
+
+    const genCriticalAlerts = () => {
+        const alerts = [], contacts = []
+        if (laborForm.fetal_heart_rate < 110) { alerts.push(`胎心率过缓 (${laborForm.fetal_heart_rate} bpm)`); contacts.push('产科主任', '麻醉医生') }
+        else if (laborForm.fetal_heart_rate > 160) { alerts.push(`胎心率过快 (${laborForm.fetal_heart_rate} bpm)`); contacts.push('产科主任') }
+        if (laborForm.amniotic_fluid === 'III度') { alerts.push('羊水III度混浊'); contacts.push('儿科医生', '产科主任') }
+        if (laborForm.blood_loss > 500) { alerts.push(`出血量过多 (${laborForm.blood_loss} ml)`); contacts.push('产科主任', '麻醉医生', '手术室') }
+        if (laborForm.comorbidities.includes('瘢痕子宫') && laborForm.contraction_strength === '持续性强烈宫缩') { alerts.push('疑似子宫破裂风险'); contacts.push('产科主任', '麻醉医生', '手术室团队') }
+        criticalAlerts.value = [...new Set(alerts)]
+        criticalContacts.value = [...new Set(contacts)].slice(0, 4)
+    }
+
+    const submitAnalysis = async () => {
+        isLoading.value = true
+        pphError.value = null
+
+        if (activeTab.value === 'labor') {
+            if (!apiConfig.apiKey) { alert('请先在设置中配置 API Key'); showSettings.value = true; isLoading.value = false; return }
+            laborResult.value = { ai_analysis: null }
+            rawText.value = ''
+            assessmentCards.value = []
+            streamingText.value = ''
+            isStreaming.value = true
+            showLaborCritical.value = false
+
+            try {
+                const hasCrit = laborForm.fetal_heart_rate < 110 || laborForm.fetal_heart_rate > 160 || laborForm.amniotic_fluid === 'III度' || laborForm.blood_loss > 500 || (laborForm.comorbidities.includes('瘢痕子宫') && laborForm.contraction_strength === '持续性强烈宫缩')
+                if (hasCrit) { genCriticalAlerts(); showLaborCritical.value = true; isStreaming.value = false; isLoading.value = false; return }
+
+                const cdd = {}
+                for (const c of selectedComorbidities.value) { if (comorbiditiesDetail[c]) cdd[c] = { ...comorbiditiesDetail[c] } }
+                const up = `产程数据：\n- 孕周: ${laborForm.gestational_age} 周\n- 产次: ${laborForm.parity} 次\n- 宫口开大: ${laborForm.cervical_dilation} cm\n- 先露高低: ${laborForm.fetal_presentation_level}\n- 胎心率: ${laborForm.fetal_heart_rate} bpm\n- 血压: ${laborForm.blood_pressure}\n- 宫缩强度: ${laborForm.contraction_strength}\n- 羊水性状: ${laborForm.amniotic_fluid}\n- 胎儿双顶径: ${laborForm.fetal_biparietal_diameter}\n- 出血量: ${laborForm.blood_loss} ml\n- 合并症: ${laborForm.comorbidities.join('、') || '无'}\n- 详细信息: ${JSON.stringify(cdd)}\n\n请按以下结构输出：**【风险识别】** → **【处理措施】** → **【呼叫建议】** → **【新生儿预案】**(如需要)。使用Markdown格式，标注风险等级。`
+
+                let apiUrl = apiConfig.baseUrl.replace(/\/+$/, '')
+                if (!apiUrl.endsWith('/chat/completions')) apiUrl += '/chat/completions'
+
+                const res = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.apiKey}` },
+                    body: JSON.stringify({
+                        model: apiConfig.modelName, stream: true,
+                        messages: [
+                            { role: 'system', content: '你是产科专家。严格参考《妇产科学第10版》、ACOG Practice Bulletin、中国产后出血预防与处理指南(2023)、NRP第8版。禁止虚构职称、日期、医院名。使用Markdown格式。' },
+                            { role: 'user', content: up }
+                        ]
+                    })
+                })
+
+                const reader = res.body.getReader()
+                const dec = new TextDecoder()
+                let full = ''
+
+                while (true) {
+                    const { done, value } = await reader.read()
+                    if (done) break
+                    const chk = dec.decode(value).split('\n')
+                    for (const ln of chk) {
+                        if (ln.startsWith('data:')) {
+                            try {
+                                const d = JSON.parse(ln.slice(5))
+                                if (d.choices?.[0]?.delta?.content) { full += d.choices[0].delta.content; streamingText.value = full }
+                            } catch(e) {}
+                        }
+                    }
+                }
+
+                isStreaming.value = false
+                streamingText.value = ''
+                laborResult.value = { ai_analysis: full }
+                parseResult(full)
+
+            } catch(err) {
+                isStreaming.value = false
+                console.error('流式失败:', err)
+                try {
+                    let apiUrl = apiConfig.baseUrl.replace(/\/+$/, '')
+                    if (!apiUrl.endsWith('/chat/completions')) apiUrl += '/chat/completions'
+                    const res = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.apiKey}` },
+                        body: JSON.stringify({
+                            model: apiConfig.modelName,
+                            messages: [
+                                { role: 'system', content: '你是产科专家。严格参考《妇产科学第10版》、ACOG Practice Bulletin、中国产后出血预防与处理指南(2023)、NRP第8版。禁止虚构职称、日期、医院名。使用Markdown格式。' },
+                                { role: 'user', content: up }
+                            ]
+                        })
+                    })
+                    const d = await res.json()
+                    laborResult.value = { ai_analysis: d.choices?.[0]?.message?.content }
+                    parseResult(d.choices?.[0]?.message?.content)
+                } catch(e2) { alert(`分析失败: ${e2.message}`) }
+            }
+        } else {
+            pphResult.value = null
+            pphNeedMtp.value = false
+            try {
+                const res = await fetch('/pph/analyze', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(pphData)
+                })
+                if (!res.ok) throw new Error(`HTTP ${res.status}`)
+                const d = await res.json()
+                pphResult.value = d
+                pphNeedMtp.value = d.need_mtp
+                if (d.error) pphError.value = d.error
+            } catch(e) {
+                console.error('PPH错误:', e)
+                pphError.value = `分析失败: ${e.message}`
+                alert(`PPH分析失败: ${e.message}\n\n请确保后端服务已启动`)
+            }
+        }
+        isLoading.value = false
+    }
+
+    onMounted(() => { loadApiConfig(); showLaborCritical.value = false; laborResult.value = null; pphResult.value = null; pphNeedMtp.value = false; isStreaming.value = false; streamingText.value = ''; assessmentCards.value = [] })
+
+    watch(activeTab, (t) => {
+        if (t === 'labor') { pphResult.value = null; pphNeedMtp.value = false; pphError.value = null }
+        else { laborResult.value = null; rawText.value = ''; assessmentCards.value = []; showLaborCritical.value = false; isStreaming.value = false; streamingText.value = '' }
+    })
+
+    return {
+        activeTab, showSettings, isLoading, showLaborCritical, criticalAlerts, criticalContacts,
+        apiConfig, laborForm, comorbiditiesDetail, selectedComorbidities, comorbidityOptions,
+        laborResult, rawText, assessmentCards, pphData, pphResult, pphNeedMtp, pphError,
+        isStreaming, streamingText, si, map, siColorClass, pphShockColor, activeInfo,
+        toggleComorbidity, setComorbidityDetail, getDetailValue, calculatedBMI, bmiCategory,
+        saveApiConfig, submitAnalysis, toggleCard, toggleInfo
+    }
+}
+}).mount('#app')
+</script>
+</body>
+</html>

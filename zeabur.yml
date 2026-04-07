@@ -1,0 +1,25 @@
+# ============================================
+# Zeabur / Render / Railway 免费部署配置
+# ============================================
+
+# 注意：这些平台会自动读取此文件
+# 只需在对应平台上连接你的 GitHub/GitLab 仓库即可
+
+services:
+  # FastAPI 后端服务
+  - name: labor-risk-api
+    type: worker
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env:
+      - API_KEY=${{API_KEY}}
+      - API_BASE=${{API_BASE}}
+      - MODEL_NAME=${{MODEL_NAME}}
+    ports:
+      - 8000:8000
+    resources:
+      cpu: 512m
+      memory: 512Mi
+
+# 如果使用 Render/Railway，使用以下简化版：

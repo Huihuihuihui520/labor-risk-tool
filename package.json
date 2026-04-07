@@ -1,0 +1,19 @@
+{
+  "name": "zhuchanzhushou",
+  "version": "1.0.0",
+  "description": "这是一个基于 FastAPI 和 Pydantic 的产科风险分析和决策支持系统，旨在为助产士小组提供实时、符合医学指南的建议。系统涵盖了产程评估（Labor Assessment）和产后出血（PPH）紧急复苏工作站。",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "tailwindcss": "^3.4.1"
+  }
+}
