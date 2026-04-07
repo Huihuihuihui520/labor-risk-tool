@@ -13,6 +13,7 @@
     <style>
         * { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", STHeiti, "Microsoft Yahei", Tahoma, Simsun, sans-serif; -webkit-tap-highlight-color: transparent; }
         [v-cloak] { display: none !important; }
+        .force-hidden { display: none !important; }
         
         .slide-enter-active,.slide-leave-active{transition:all .4s cubic-bezier(.32,.72,0,1)}
         .slide-enter-from{transform:translateX(100%);opacity:0}
@@ -580,7 +581,12 @@
 </div>
 
 <!-- 紧急警报 -->
-<div v-if="showLaborCritical" class="fixed inset-0 z-[9999] bg-black/70 flex items-center justify-center p-6" id="critical-modal" @click.self="closeAlertModal()">
+<div v-if="showLaborCritical" :key="showLaborCritical ? Date.now() : 0" 
+     class="fixed inset-0 z-[9999] bg-black/70 flex items-center justify-center p-6" 
+     id="critical-modal" 
+     :class="!showLaborCritical ? 'force-hidden' : ''"
+     :style="showLaborCritical ? 'display: flex' : 'display: none !important'"
+     @click.self="closeAlertModal()">
     <div class="bg-white w-full max-w-sm rounded-3xl overflow-hidden text-center shadow-2xl">
         <div class="bg-gradient-to-br from-red-500 to-orange-500 px-6 py-10">
             <div class="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-4 animate-pulse"><i class="fas fa-exclamation-triangle text-white text-4xl"></i></div>
@@ -826,6 +832,10 @@ setup() {
         showSettings.value = false
         criticalAlerts.value = []
         criticalContacts.value = []
+        nextTick(() => {
+            const el = document.getElementById('critical-modal')
+            if (el) el.style.display = 'none'
+        })
     }
 
     const submitAnalysis = async () => {
@@ -992,7 +1002,43 @@ setup() {
         isLoading.value = false
     }
 
-    onMounted(() => { loadApiConfig(); showLaborCritical.value = false; laborResult.value = null; pphResult.value = null; pphNeedMtp.value = false; isStreaming.value = false; streamingText.value = ''; assessmentCards.value = [] })
+    onMounted(() => { 
+        // === 第1步：立即加载API配置 ===
+        loadApiConfig(); 
+        
+        // === 第2步：立即清空紧急预警状态 ===
+        showLaborCritical.value = false; 
+        criticalAlerts.value = [];
+        criticalContacts.value = [];
+        
+        // === 第3步：Vue DOM更新后隐藏 ===
+        nextTick(() => {
+            const el = document.getElementById('critical-modal')
+            if (el) { el.style.display = 'none'; el.classList.add('force-hidden') }
+        })
+        
+        // === 第4步：100ms后再次强制隐藏 ===
+        setTimeout(() => {
+            showLaborCritical.value = false
+            const el = document.getElementById('critical-modal')
+            if (el) { el.style.display = 'none'; el.classList.add('force-hidden') }
+        }, 100)
+        
+        // === 第5步：500ms后最终检查 ===
+        setTimeout(() => {
+            showLaborCritical.value = false
+            const el = document.getElementById('critical-modal')
+            if (el) { el.style.display = 'none'; el.classList.add('force-hidden') }
+        }, 500)
+        
+        // === 然后清空其他状态 ===
+        laborResult.value = null; 
+        pphResult.value = null; 
+        pphNeedMtp.value = false; 
+        isStreaming.value = false; 
+        streamingText.value = ''; 
+        assessmentCards.value = [];
+    })
 
     watch(activeTab, (t) => {
         if (t === 'labor') { pphResult.value = null; pphNeedMtp.value = false; pphError.value = null }
