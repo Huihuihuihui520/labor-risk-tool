@@ -129,7 +129,7 @@
             border-radius: 12px;
             padding: 12px;
             box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);
-            z-index: 20;
+            z-index: 1000;
             color: #374151;
             font-size: 12px;
             line-height: 1.5;
@@ -580,7 +580,7 @@
 </div>
 
 <!-- 紧急警报 -->
-<div v-show="showLaborCritical" class="fixed inset-0 z-[9999] bg-black/70 flex items-center justify-center p-6" @click.self="closeAlertModal()">
+<div v-if="showLaborCritical" class="fixed inset-0 z-[9999] bg-black/70 flex items-center justify-center p-6" id="critical-modal" @click.self="closeAlertModal()">
     <div class="bg-white w-full max-w-sm rounded-3xl overflow-hidden text-center shadow-2xl">
         <div class="bg-gradient-to-br from-red-500 to-orange-500 px-6 py-10">
             <div class="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-4 animate-pulse"><i class="fas fa-exclamation-triangle text-white text-4xl"></i></div>
@@ -824,6 +824,8 @@ setup() {
     const closeAlertModal = () => {
         showLaborCritical.value = false
         showSettings.value = false
+        criticalAlerts.value = []
+        criticalContacts.value = []
     }
 
     const submitAnalysis = async () => {
@@ -910,21 +912,82 @@ setup() {
         } else {
             pphResult.value = null
             pphNeedMtp.value = false
-            try {
-                const res = await fetch('/pph/analyze', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(pphData)
-                })
-                if (!res.ok) throw new Error(`HTTP ${res.status}`)
-                const d = await res.json()
-                pphResult.value = d
-                pphNeedMtp.value = d.need_mtp
-                if (d.error) pphError.value = d.error
-            } catch(e) {
-                console.error('PPH错误:', e)
-                pphError.value = `分析失败: ${e.message}`
-                alert(`PPH分析失败: ${e.message}\n\n请确保后端服务已启动`)
+
+            // PPH前端计算（完全基于规则，不依赖后端）
+            const si = pphData.heart_rate / pphData.systolic_bp
+            const mapVal = (pphData.systolic_bp + 2 * pphData.diastolic_bp) / 3
+            const abl = pphData.accumulated_blood_loss
+            const ga = pphData.gestational_age
+            const par = pphData.parity
+
+            // 休克程度判断
+            let shock_level, shock_color, shock_advice
+            if (si < 1.0) { shock_level = "轻度"; shock_color = "#34C759"; shock_advice = "密切监测，继续观察" }
+            else if (si < 1.5) { shock_level = "中度"; shock_color = "#FF9500"; shock_advice = "需要快速补液，准备输血" }
+            else if (si < 2.0) { shock_level = "重度"; shock_color = "#FF6B35"; shock_advice = "立即启动MTP预案，紧急配血" }
+            else { shock_level = "极重度"; shock_color = "#FF3B30"; shock_advice = "濒死状态，立即复苏" }
+
+            // MTP判断
+            const need_mtp = abl >= 1000 || si > 1.0
+
+            // 容量复苏方案
+            const infusion_speed = {
+                "首剂（首20min）": "20ml/kg",
+                "维持（每1h）": "10ml/kg",
+                "目标": "收缩压 80-90 mmHg"
             }
+
+            const uterotonic = {
+                "缩宫素": "首选，静滴或肌注，24小时总量≤60U，预防受体饱和",
+                "前列腺素制剂": "如卡前列素氨丁三醇，哮喘等禁忌症需注意，单次250μg",
+                "氨甲环酸": "确诊PPH后应在3小时内尽早给予，1g静注(>10min)"
+            }
+
+            const monitoring = [
+                "持续心电监护：每5min记录一次HR、BP、SPO2、意识",
+                "尿量监测：留置尿管，目标尿量≥30ml/h",
+                "凝血功能监测：每30min检测一次Fib、Hb、HCT、血小板",
+                "血气分析：必要时检测乳酸、pH值"
+            ]
+
+            let mtp_units = {}
+            if (need_mtp) {
+                mtp_units = {
+                    "红细胞": Math.ceil(abl / 200),
+                    "血浆": Math.ceil(abl / 200),
+                    "血小板": Math.ceil(abl / 300),
+                    "冷沉淀": Math.ceil(abl / 400),
+                    "纤维蛋白原": abl >= 1000 ? 2 : 0
+                }
+            }
+
+            pphResult.value = {
+                status: "ok",
+                type: "pph",
+                indicators: {
+                    abl: abl,
+                    si: Math.round(si * 100) / 100,
+                    map: Math.round(mapVal * 10) / 10,
+                    shock_level: shock_level,
+                    shock_color: shock_color,
+                    shock_advice: shock_advice
+                },
+                need_mtp: need_mtp,
+                mtp_message: need_mtp ? "【！！紧急启动MTP预案！！】请立即通知：麻醉医生、血库、产科主任" : null,
+                resuscitation: {
+                    mtp_units: mtp_units,
+                    infusion_speed: infusion_speed,
+                    uterotonic: uterotonic,
+                    monitoring: monitoring
+                },
+                lab_reference: {
+                    hemoglobin: pphData.hemoglobin,
+                    hematocrit: pphData.hematocrit,
+                    fibrinogen: pphData.fibrinogen,
+                    lactate: pphData.lactate
+                }
+            }
+            pphNeedMtp.value = need_mtp
         }
         isLoading.value = false
     }
