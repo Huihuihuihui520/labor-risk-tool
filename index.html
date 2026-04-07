@@ -580,7 +580,7 @@
 </div>
 
 <!-- 紧急警报 -->
-<div v-if="showLaborCritical" class="fixed inset-0 z-[9999] bg-black/70 flex items-center justify-center p-6" @click.self="closeAlertModal()">
+<div v-show="showLaborCritical" class="fixed inset-0 z-[9999] bg-black/70 flex items-center justify-center p-6" @click.self="closeAlertModal()">
     <div class="bg-white w-full max-w-sm rounded-3xl overflow-hidden text-center shadow-2xl">
         <div class="bg-gradient-to-br from-red-500 to-orange-500 px-6 py-10">
             <div class="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-4 animate-pulse"><i class="fas fa-exclamation-triangle text-white text-4xl"></i></div>
@@ -603,7 +603,7 @@
 </div>
 
 <script>
-const { createApp, ref, computed, reactive, onMounted, watch } = Vue
+const { createApp, ref, computed, reactive, onMounted, watch, nextTick } = Vue
 
 createApp({
 setup() {
@@ -809,23 +809,30 @@ setup() {
         if (laborForm.comorbidities.includes('瘢痕子宫') && laborForm.contraction_strength === '持续性强烈宫缩') { alerts.push('疑似子宫破裂风险'); contacts.push('产科主任', '麻醉医生', '手术室团队') }
         criticalAlerts.value = [...new Set(alerts)]
         criticalContacts.value = [...new Set(contacts)].slice(0, 4)
-
-        // 使用原生DOM渲染（避免Vue模板编译问题）
-        setTimeout(() => {
-            const alertListEl = document.getElementById('alert-list')
-            const contactListEl = document.getElementById('contact-list')
-            if (alertListEl) {
-                alertListEl.innerHTML = criticalAlerts.value.length > 0
-                    ? criticalAlerts.value.map(a => `<div class="py-1">• ${a}</div>`).join('')
-                    : '<div class="py-1 text-red-500">暂无具体指标</div>'
-            }
-            if (contactListEl) {
-                contactListEl.innerHTML = criticalContacts.value.length > 0
-                    ? criticalContacts.value.map(p => `<span class="px-3 py-1 bg-blue-500 text-white text-xs rounded-full font-medium">${p}</span>`).join('')
-                    : '<span class="text-gray-500 text-sm">暂无联系人</span>'
-            }
-        }, 0)
     }
+
+    const renderAlertModal = () => {
+        nextTick(() => {
+            setTimeout(() => {
+                const alertListEl = document.getElementById('alert-list')
+                const contactListEl = document.getElementById('contact-list')
+                if (alertListEl) {
+                    alertListEl.innerHTML = criticalAlerts.value.length > 0
+                        ? criticalAlerts.value.map(a => `<div class="py-1">• ${a}</div>`).join('')
+                        : '<div class="py-1 text-red-500">暂无具体指标</div>'
+                }
+                if (contactListEl) {
+                    contactListEl.innerHTML = criticalContacts.value.length > 0
+                        ? criticalContacts.value.map(p => `<span class="px-3 py-1 bg-blue-500 text-white text-xs rounded-full font-medium">${p}</span>`).join('')
+                        : '<span class="text-gray-500 text-sm">暂无联系人</span>'
+                }
+            }, 50)
+        })
+    }
+
+    watch(showLaborCritical, (val) => {
+        if (val) { renderAlertModal() }
+    })
 
     const closeAlertModal = () => {
         showLaborCritical.value = false
