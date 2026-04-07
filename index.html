@@ -125,15 +125,16 @@
         .col-enter-from,.col-leave-to{max-height:0;opacity:0;padding-top:0;padding-bottom:0}
         .col-enter-to,.col-leave-from{max-height:600px;opacity:1}
 
-        /* ========== 紧急弹窗强制隐藏保护 ========== */
+        /* ========== 紧急弹窗强制隐藏保护（v-show兼容） ========== */
+        /* v-show=false时Vue会添加style="display: none" */
         #critical-modal {
-            display: none !important;
             visibility: hidden;
             pointer-events: none;
         }
         
+        /* v-show=true时Vue会移除style，让display:flex生效 */
         #critical-modal[style*="display: flex"],
-        #critical-modal.show {
+        #critical-modal:not([style*="display: none"]) {
             display: flex !important;
             visibility: visible;
             pointer-events: auto;
@@ -660,6 +661,7 @@
 <!-- 紧急警报 -->
 <div v-show="showLaborCritical" :key="showLaborCritical ? Date.now() : 0" 
      class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4 sm:p-6" 
+     style="display: none"
      id="critical-modal"
      @click.self="closeAlertModal()">
     <div class="bg-white w-full max-w-sm rounded-3xl overflow-hidden text-center shadow-2xl">
