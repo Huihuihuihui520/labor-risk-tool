@@ -1,7 +1,8 @@
 import logging
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from schemas import LaborCase, PPHCase, AnalyzeRequest
 from utils import (
@@ -227,16 +228,9 @@ def read_pph():
 
 @app.get("/")
 def read_root():
-    return {
-        "name": "产房风险决策辅助工具",
-        "version": "2.1.0",
-        "endpoints": {
-            "/analyze": "统一分析接口 (POST)",
-            "/analyze/stream": "流式分析接口 (POST)",
-            "/pph/analyze": "PPH复苏分析 (POST)",
-            "/pph": "PPH工作站"
-        }
-    }
+    return FileResponse("index.html")
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 if __name__ == "__main__":
     import uvicorn
