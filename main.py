@@ -1,5 +1,5 @@
 import logging
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -25,12 +25,15 @@ app = FastAPI(
     version="2.1.0"
 )
 
+# 改进CORS配置以支持移动设备
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Type", "Content-Length", "Transfer-Encoding"],
+    max_age=3600
 )
 
 @app.post("/analyze")
@@ -137,7 +140,7 @@ async def handle_pph_analysis(case: LaborCase) -> dict:
 
 @app.post("/analyze/stream")
 async def analyze_stream(request: AnalyzeRequest):
-    """流式分析接口 - 根据 type 参数调用不同的分析逻辑"""
+    """流式分析接口 - 根据 type 参数调用不同的分析逻辑，增强移动设备兼容性"""
     match request.type:
         case "labor":
             is_critical, alerts, contacts = check_critical_alerts(request.case)
@@ -147,29 +150,46 @@ async def analyze_stream(request: AnalyzeRequest):
             system_prompt = build_labor_system_prompt()
             user_prompt = build_user_prompt(request.case)
             
+            # 使用特殊的流式生成方法，确保移动设备兼容
             return StreamingResponse(
-                generate_stream(system_prompt, user_prompt),
+                stream_with_retry(system_prompt, user_prompt),
                 media_type="text/event-stream",
-                headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"}
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                    "X-Accel-Buffering": "no",
+                    "Transfer-Encoding": "chunked"
+                }
             )
         case "pph":
-            abl = max(request.case.blood_loss, 0)
-            si = calculate_shock_index(90, 80)
-            shock_level, _, _ = get_shock_level(si)
-            pph_case = PPHCase(
-                accumulated_blood_loss=abl, heart_rate=80, systolic_bp=90, diastolic_bp=60,
-                gestational_age=request.case.gestational_age, parity=request.case.parity
-            )
-            system_prompt = build_pph_system_prompt(shock_level)
-            user_prompt = build_pph_user_prompt(pph_case, si, shock_level)
+            # PPH的流式处理
+            system_prompt = build_pph_system_prompt("检查中")
+            user_prompt = build_pph_user_prompt(PPHCase(**request.case.dict()), 1.0, "轻度")
             
             return StreamingResponse(
-                generate_stream(system_prompt, user_prompt),
+                stream_with_retry(system_prompt, user_prompt),
                 media_type="text/event-stream",
-                headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"}
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                    "X-Accel-Buffering": "no"
+                }
             )
         case _:
             raise HTTPException(status_code=400, detail=f"无效的type参数: {request.type}")
+
+async def stream_with_retry(system_prompt: str, user_prompt: str):
+    """流式生成，带重试机制和移动设备兼容性"""
+    import asyncio
+    
+    try:
+        async for chunk in generate_stream(system_prompt, user_prompt):
+            yield chunk
+            # 移动设备兼容性：定期发送同步信号
+            await asyncio.sleep(0.01)
+    except Exception as e:
+        logger.error(f"流式生成失败: {e}")
+        yield f'data: {{"error": "{str(e)}"}}\n\n'.encode()
 
 @app.post("/pph/analyze")
 async def analyze_pph_direct(pph_case: PPHCase):

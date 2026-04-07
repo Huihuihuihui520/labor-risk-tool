@@ -2,7 +2,15 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="description" content="产房风险决策辅助系统 - 为医护人员提供AI驱动的临床决策支持">
+    <meta name="apple-mobile-web-app-title" content="产房决策辅助">
+    <!-- 移动网络优化 -->
+    <meta http-equiv="Cache-Control" content="public, max-age=3600">
+    <meta name="mobile-web-app-capable" content="yes">
     <title>产房风险决策辅助系统</title>
     <!-- DNS 预解析加速加载 -->
     <link rel="dns-prefetch" href="https://cdn.staticfile.net">
@@ -12,8 +20,37 @@
     <link rel="stylesheet" href="https://cdn.staticfile.net/font-awesome/6.4.0/css/all.min.css">
     <style>
         * { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", STHeiti, "Microsoft Yahei", Tahoma, Simsun, sans-serif; -webkit-tap-highlight-color: transparent; }
+        html, body { width: 100%; height: 100% }
+        body { 
+            margin: 0; padding: 0;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            overscroll-behavior: contain;
+        }
         [v-cloak] { display: none !important; }
         .force-hidden { display: none !important; }
+        
+        /* 修复100vh在移动设备上的问题 */
+        #app {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+            height: 100dvh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        main {
+            flex: 1;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
         
         .slide-enter-active,.slide-leave-active{transition:all .4s cubic-bezier(.32,.72,0,1)}
         .slide-enter-from{transform:translateX(100%);opacity:0}
@@ -167,11 +204,37 @@
             .glk{padding:9px 10px;gap:8px}
             .glk-icon{width:30px;height:30px;border-radius:8px}
             .pph-metric-card p.text-3xl{font-size:1.5rem!important}
+            
+            /* 移动端安全区域修复 */
+            .fixed.bottom-0 {
+                padding-bottom: max(1rem, env(safe-area-inset-bottom));
+                bottom: 0;
+            }
+            
+            /* 防止输入框被键盘遮挡 */
+            input, select, textarea {
+                font-size: 16px !important;
+                -webkit-appearance: none;
+                appearance: none;
+            }
+            
+            /* 小屏幕适配 */
+            header { padding-top: env(safe-area-inset-top, 0) }
+            header .max-w-4xl { padding-top: 0.5rem }
+        }
+        
+        /* Extra small screens (320px+) */
+        @media(max-width:384px) {
+            .rc-info p.text-base { font-size: 0.875rem }
+            .rc-badge { font-size: 10px; padding: 3px 8px }
+            .glk { font-size: 12px }
+            header h1 { font-size: 1rem }
+            header p { font-size: 11px }
         }
     </style>
 </head>
-<body class="bg-[#F5F5F7] min-h-screen">
-<div id="app" class="min-h-screen pb-28" @click="activeInfo = null">
+<body class="bg-[#F5F5F7] m-0 p-0 w-full">
+<div id="app" class="pb-32" @click="activeInfo = null">
 
 <!-- Header -->
 <header class="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-gray-200">
@@ -567,8 +630,8 @@
 </div>
 
 <!-- 设置模态框 -->
-<div v-if="showSettings" class="fixed inset-0 z-50 bg-black/40 flex items-end justify-center" @click.self="showSettings=false">
-    <div class="bg-white w-full max-w-2xl rounded-t-3xl p-6">
+<div v-if="showSettings" class="fixed inset-0 z-40 bg-black/40 flex items-end justify-center" @click.self="showSettings=false">
+    <div class="bg-white w-full max-w-2xl rounded-t-3xl p-6 pb-max(1.5rem,env(safe-area-inset-bottom))">
         <div class="flex items-center justify-between mb-6"><h2 class="text-xl font-bold text-gray-900">API 配置</h2><button @click="showSettings=false" class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500"><i class="fas fa-times"></i></button></div>
         <div class="space-y-4">
             <div class="bg-gray-100 rounded-2xl p-4"><label class="text-xs text-gray-500 block mb-2">API Key</label><input type="password" v-model="apiConfig.apiKey" placeholder="sk-xxxxxxxxxxxxxxxx" class="w-full bg-transparent text-gray-900 text-sm outline-none"></div>
@@ -582,7 +645,7 @@
 
 <!-- 紧急警报 -->
 <div v-if="showLaborCritical" :key="showLaborCritical ? Date.now() : 0" 
-     class="fixed inset-0 z-[9999] bg-black/70 flex items-center justify-center p-6" 
+     class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4 sm:p-6" 
      id="critical-modal" 
      :class="!showLaborCritical ? 'force-hidden' : ''"
      :style="showLaborCritical ? 'display: flex' : 'display: none !important'"
@@ -592,7 +655,7 @@
             <div class="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-4 animate-pulse"><i class="fas fa-exclamation-triangle text-white text-4xl"></i></div>
             <h2 class="text-2xl font-bold text-white mb-2">紧急预警</h2><p class="text-white/90 text-sm">请立即采取行动</p>
         </div>
-        <div class="p-6">
+        <div class="p-6 max-h-[60vh] overflow-y-auto">
             <div class="bg-red-50 rounded-2xl p-4 mb-4">
                 <p class="text-red-600 font-semibold text-sm mb-2"><i class="fas fa-exclamation-circle mr-2"></i>检测到危险指标：</p>
                 <div class="text-red-600 text-sm space-y-1 text-left" v-html="alertHtml"></div>
@@ -687,8 +750,22 @@ setup() {
     const calculatedBMI = (c) => { const h = comorbiditiesDetail[c]?.height, w = comorbiditiesDetail[c]?.weight; if (h && w && h > 0) return (w / ((h / 100) ** 2)).toFixed(1); return null }
     const bmiCategory = (c) => { const b = calculatedBMI(c); if (!b) return ''; if (b < 18.5) return '体重过低'; if (b < 24) return '正常'; if (b < 28) return '超重'; return '肥胖' }
 
-    const saveApiConfig = () => { localStorage.setItem('apiConfig', JSON.stringify(apiConfig)); showSettings.value = false }
-    const loadApiConfig = () => { const s = localStorage.getItem('apiConfig'); if (s) Object.assign(apiConfig, JSON.parse(s)) }
+    const saveApiConfig = () => { 
+        try {
+            localStorage.setItem('apiConfig', JSON.stringify(apiConfig))
+        } catch(e) {
+            console.warn('localStorage不可用，配置仅保存在内存中:', e)
+        }
+        showSettings.value = false 
+    }
+    const loadApiConfig = () => { 
+        try {
+            const s = localStorage.getItem('apiConfig')
+            if (s) Object.assign(apiConfig, JSON.parse(s))
+        } catch(e) {
+            console.warn('localStorage不可用:', e)
+        }
+    }
 
     // ========== 解析AI结果为结构化卡片 (默认折叠) ==========
     const parseResult = (text) => {
@@ -862,7 +939,16 @@ setup() {
                 let apiUrl = apiConfig.baseUrl.replace(/\/+$/, '')
                 if (!apiUrl.endsWith('/chat/completions')) apiUrl += '/chat/completions'
 
-                const res = await fetch(apiUrl, {
+                // 添加超时控制和重试机制
+                const fetchWithTimeout = (url, options, timeout = 30000) => {
+                    const controller = new AbortController()
+                    const id = setTimeout(() => controller.abort(), timeout)
+                    return fetch(url, { ...options, signal: controller.signal })
+                        .then(r => (clearTimeout(id), r))
+                        .catch(e => (clearTimeout(id), Promise.reject(e)))
+                }
+
+                const res = await fetchWithTimeout(apiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.apiKey}` },
                     body: JSON.stringify({
@@ -872,7 +958,28 @@ setup() {
                             { role: 'user', content: up }
                         ]
                     })
-                })
+                }, 60000)
+
+                // 兼容不支持getReader的浏览器
+                if (!res.body || !res.body.getReader) {
+                    // 降级方案：直接读取完整响应
+                    const text = await res.text()
+                    const lines = text.split('\n')
+                    let full = ''
+                    for (const ln of lines) {
+                        if (ln.startsWith('data:')) {
+                            try {
+                                const d = JSON.parse(ln.slice(5))
+                                if (d.choices?.[0]?.delta?.content) full += d.choices[0].delta.content
+                            } catch(e) {}
+                        }
+                    }
+                    isStreaming.value = false
+                    streamingText.value = ''
+                    laborResult.value = { ai_analysis: full }
+                    parseResult(full)
+                    return
+                }
 
                 const reader = res.body.getReader()
                 const dec = new TextDecoder()
@@ -903,7 +1010,16 @@ setup() {
                 try {
                     let apiUrl = apiConfig.baseUrl.replace(/\/+$/, '')
                     if (!apiUrl.endsWith('/chat/completions')) apiUrl += '/chat/completions'
-                    const res = await fetch(apiUrl, {
+                    
+                    const fetchWithTimeout = (url, options, timeout = 30000) => {
+                        const controller = new AbortController()
+                        const id = setTimeout(() => controller.abort(), timeout)
+                        return fetch(url, { ...options, signal: controller.signal })
+                            .then(r => (clearTimeout(id), r))
+                            .catch(e => (clearTimeout(id), Promise.reject(e)))
+                    }
+                    
+                    const res = await fetchWithTimeout(apiUrl, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.apiKey}` },
                         body: JSON.stringify({
@@ -913,11 +1029,11 @@ setup() {
                                 { role: 'user', content: up }
                             ]
                         })
-                    })
+                    }, 50000)
                     const d = await res.json()
                     laborResult.value = { ai_analysis: d.choices?.[0]?.message?.content }
                     parseResult(d.choices?.[0]?.message?.content)
-                } catch(e2) { alert(`分析失败: ${e2.message}`) }
+                } catch(e2) { alert(`分析失败: ${e2.message || '网络超时或API错误'}`) }
             }
         } else {
             pphResult.value = null
